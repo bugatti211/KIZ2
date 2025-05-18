@@ -1,0 +1,27 @@
+import api from './api';
+
+export async function register(name: string, email: string, password: string) {
+  const res = await api.post('/register', { name, email, password });
+  return res.data;
+}
+
+export async function login(email: string, password: string) {
+  try {
+    const res = await api.post('/login', { email, password });
+    return res.data;
+  } catch (error: any) {
+    // Axios error: error.response?.data?.message или error.message
+    if (error.response) {
+      throw new Error(error.response.data?.message || 'Login failed');
+    } else if (error.request) {
+      throw new Error('No response from server. Check API URL and network connection.');
+    } else {
+      throw new Error(error.message || 'Unknown error');
+    }
+  }
+}
+
+export async function getUsers() {
+  const res = await api.get('/users');
+  return res.data;
+}
