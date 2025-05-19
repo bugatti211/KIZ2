@@ -2,13 +2,19 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, Button, TextInput, FlatList, StyleSheet, Modal, TouchableOpacity, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../api';
-import LoginScreen from '../LoginScreen';
-import RegisterScreen from '../RegisterScreen';
+import { useAuthModal } from '../AuthContext';
 
 interface ProfileScreenProps {
   setIsAuthenticated?: (v: boolean) => void;
   navigation?: any;
   route?: any;
+}
+
+interface ProfileUser {
+  id: number;
+  name: string;
+  email: string;
+  address?: string;
 }
 
 export default function ProfileScreen({ setIsAuthenticated, navigation, route }: ProfileScreenProps) {
@@ -20,9 +26,13 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [showModeration, setShowModeration] = useState(false);
-  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const [user, setUser] = useState<ProfileUser | null>(null);
+  const { setShowAuthModal, setAuthMode, showAuthModal } = useAuthModal();
+  const [showPersonalInfo, setShowPersonalInfo] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editAddress, setEditAddress] = useState('');
+  const [saving, setSaving] = useState(false);
 
   // Получить объявления на модерацию
   const fetchAds = async () => {
@@ -43,14 +53,18 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
   const fetchUser = async () => {
     try {
       const token = await AsyncStorage.getItem('token');
-      if (!token) throw new Error('Нет токена');
+      if (!token) {
+        setUser(null);
+        return;
+      }
       const res = await api.get('/users');
       // Найти пользователя по email из токена
       const tokenPayload = JSON.parse(atob(token.split('.')[1]));
       const currentUser = res.data.find((u: any) => u.email === tokenPayload.email);
-      setUser(currentUser || null);
+      // Если нет address, подставить пустую строку для корректной работы формы
+      setUser(currentUser ? { ...currentUser, address: currentUser.address || '' } : null);
     } catch (e) {
-      // не критично, можно не показывать ошибку
+      setUser(null); // сбрасываем user при ошибке
     }
   };
 
@@ -58,6 +72,16 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
     fetchUser();
     fetchAds();
   }, []);
+
+  // После успешного входа — слушать глобальное окно и обновлять профиль
+  useEffect(() => {
+    const unsubscribe = () => {};
+    // Подписка на закрытие окна авторизации
+    if (!showAuthModal) {
+      fetchUser();
+    }
+    return unsubscribe;
+  }, [showAuthModal]);
 
   // Создать объявление
   const handleCreate = async () => {
@@ -85,6 +109,26 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
   const handleReject = async (id: number) => {
     await api.post(`/ads/${id}/reject`);
     fetchAds();
+  };
+
+  // Функция для обновления личной информации
+  const handleSavePersonalInfo = async () => {
+    setSaving(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token || !user) throw new Error('Нет токена или пользователя');
+      await api.put(`/users/${user.id}`, {
+        name: editName,
+        email: editEmail,
+        address: editAddress,
+      });
+      setUser({ ...user, name: editName, email: editEmail, address: editAddress });
+      setShowPersonalInfo(false);
+    } catch (e) {
+      // Можно добавить обработку ошибок
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Стили должны быть определены до использования
@@ -164,14 +208,46 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
     },
   });
 
+  // При открытии личной информации заполняем поля
+  useEffect(() => {
+    if (showPersonalInfo && user) {
+      setEditName(user.name || '');
+      setEditEmail(user.email || '');
+      setEditAddress(user.address || '');
+    }
+  }, [showPersonalInfo, user]);
+
   return (
     <View style={{ flex: 1, padding: 20 }}>
       {/* Имя пользователя */}
+      {user && user.name ? (
+        <View style={{ borderRadius: 12, padding: 18, marginBottom: 18, elevation: 2, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
+          <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#222', textAlign: 'left' }}>{user.name}</Text>
+        </View>
+      ) : user === null ? (
+        <Text style={{ textAlign: 'left' }}>Загрузка профиля...</Text>
+      ) : null}
+      {/* Кнопка для открытия личной информации */}
       <View style={styles.createBlock}>
-        <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#222', textAlign: 'center' }}>
-          {user && user.name ? `Здравствуйте, ${user.name}!` : user === null ? 'Загрузка профиля...' : ''}
-        </Text>
+        <Button title="Личная информация" onPress={() => setShowPersonalInfo(true)} />
       </View>
+      {/* Модальное окно личной информации */}
+      <Modal visible={showPersonalInfo} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Личная информация</Text>
+            <Text style={{ marginBottom: 4 }}>Имя</Text>
+            <TextInput value={editName} onChangeText={setEditName} style={styles.input} />
+            <Text style={{ marginBottom: 4 }}>Email</Text>
+            <TextInput value={editEmail} onChangeText={setEditEmail} style={styles.input} autoCapitalize="none" keyboardType="email-address" />
+            <Text style={{ marginBottom: 4 }}>Адрес</Text>
+            <TextInput value={editAddress} onChangeText={setEditAddress} style={styles.input} />
+            <Button title={saving ? 'Сохранение...' : 'Сохранить'} onPress={handleSavePersonalInfo} disabled={saving} />
+            <View style={{ height: 8 }} />
+            <Button title="Отмена" onPress={() => setShowPersonalInfo(false)} />
+          </View>
+        </View>
+      </Modal>
       {/* Блок создания объявления */}
       <View style={styles.createBlock}>
         <Button title="Создать объявление" onPress={() => setShowCreate(true)} />
@@ -209,14 +285,22 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
         {user ? (
           <Button title="Выйти" color="#e53935" onPress={async () => {
             await AsyncStorage.removeItem('token');
+            setUser(null); // Сбросить пользователя локально
+            setShowAuthModal(true); // Открыть глобальное окно авторизации
+            setAuthMode('login'); // Переключить на форму входа
             if (setIsAuthenticated) setIsAuthenticated(false);
-            if (navigation && navigation.replace) navigation.replace('LoginScreen');
           }} />
         ) : (
           <>
-            <Button title="Войти" onPress={() => { setAuthMode('login'); setShowAuthModal(true); }} />
+            <Button title="Войти" onPress={() => {
+              setAuthMode('login');
+              setShowAuthModal(true);
+            }} />
             <View style={{ height: 8 }} />
-            <Button title="Зарегистрироваться" onPress={() => { setAuthMode('register'); setShowAuthModal(true); }} />
+            <Button title="Зарегистрироваться" onPress={() => {
+              setAuthMode('register');
+              setShowAuthModal(true);
+            }} />
           </>
         )}
       </View>
@@ -230,8 +314,8 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
             ) : (
               <FlatList
                 data={ads}
-                keyExtractor={item => item.id.toString()}
-                renderItem={({ item }) => (
+                keyExtractor={(item: any) => item.id.toString()}
+                renderItem={({ item }: { item: any }) => (
                   <View style={styles.adBlock}>
                     <Text style={{ fontWeight: 'bold' }}>{item.text}</Text>
                     <Text>Телефон: {item.phone}</Text>

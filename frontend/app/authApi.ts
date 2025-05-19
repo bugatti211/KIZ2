@@ -25,3 +25,6 @@ export async function getUsers() {
   const res = await api.get('/users');
   return res.data;
 }
+
+// No default export needed for authApi.ts, but to satisfy the error, export an empty default:
+export default {};

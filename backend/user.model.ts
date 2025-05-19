@@ -7,6 +7,7 @@ interface UserAttributes {
   name: string;
   email: string;
   password: string;
+  address?: string;
 }
 
 interface UserCreationAttributes extends Optional<UserAttributes, 'id'> {}
@@ -16,6 +17,7 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
   public name!: string;
   public email!: string;
   public password!: string;
+  public address?: string;
 }
 
 User.init(
@@ -37,6 +39,10 @@ User.init(
     password: {
       type: DataTypes.STRING,
       allowNull: false,
+    },
+    address: {
+      type: DataTypes.STRING,
+      allowNull: true,
     },
   },
   {
