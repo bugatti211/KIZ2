@@ -2,6 +2,8 @@ import express from 'express';
 import { Sequelize } from 'sequelize';
 import User from './user.model';
 import Ad from './ad.model';
+import Category from './category.model';
+import Product from './product.model';
 import { asyncHandler } from './asyncHandler';
 import { authMiddleware } from './authMiddleware';
 import type { Request, Response } from 'express';
@@ -31,6 +33,9 @@ User.sync();
 
 // Синхронизация модели Ad с БД
 Ad.sync();
+
+// Синхронизация модели Product с БД
+Product.sync();
 
 // CRUD роуты для User
 app.post('/users', asyncHandler(async (req: Request, res: Response) => {
@@ -144,6 +149,61 @@ app.post('/ads/:id/reject', authMiddleware as any, asyncHandler(async (req: Requ
   ad.status = 'rejected';
   await ad.save();
   res.json(ad);
+}));
+
+// Категории: CRUD
+app.get('/categories', asyncHandler(async (req: Request, res: Response) => {
+  const categories = await Category.findAll();
+  res.json(categories);
+}));
+
+app.post('/categories', asyncHandler(async (req: Request, res: Response) => {
+  const { name } = req.body;
+  if (!name) return res.status(400).json({ error: 'Название обязательно' });
+  const category = await Category.create({ name });
+  res.status(201).json(category);
+}));
+
+app.delete('/categories/:id', asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const deleted = await Category.destroy({ where: { id } });
+  if (!deleted) return res.status(404).json({ error: 'Категория не найдена' });
+  res.json({ success: true });
+}));
+
+// --- PRODUCTS CRUD ---
+app.get('/products', asyncHandler(async (req: Request, res: Response) => {
+  const products = await Product.findAll();
+  res.json(products);
+}));
+
+app.get('/products/:id', asyncHandler(async (req: Request, res: Response) => {
+  const product = await Product.findByPk(req.params.id);
+  if (!product) return res.status(404).json({ error: 'Not found' });
+  res.json(product);
+}));
+
+app.post('/products', asyncHandler(async (req: Request, res: Response) => {
+  try {
+    const product = await Product.create(req.body);
+    res.status(201).json(product);
+  } catch (e: any) {
+    res.status(400).json({ error: e.message });
+  }
+}));
+
+app.put('/products/:id', asyncHandler(async (req: Request, res: Response) => {
+  const product = await Product.findByPk(req.params.id);
+  if (!product) return res.status(404).json({ error: 'Not found' });
+  await product.update(req.body);
+  res.json(product);
+}));
+
+app.delete('/products/:id', asyncHandler(async (req: Request, res: Response) => {
+  const product = await Product.findByPk(req.params.id);
+  if (!product) return res.status(404).json({ error: 'Not found' });
+  await product.destroy();
+  res.json({ success: true });
 }));
 
 app.listen(PORT, () => {

@@ -95,7 +95,6 @@ export default function AdsScreen() {
 
   return (
     <View style={{ flex: 1, padding: 20, backgroundColor: '#f7f7f7' }}>
-      <Text style={{ fontSize: 24, marginBottom: 20, textAlign: 'center', fontWeight: 'bold', color: '#333' }}>Объявления</Text>
       {loading ? (
         <ActivityIndicator size="large" />
       ) : error ? (

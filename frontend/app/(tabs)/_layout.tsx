@@ -6,8 +6,20 @@ import CatalogScreen from './CatalogScreen';
 import ConsultScreen from './ConsultScreen';
 import CartScreen from './CartScreen';
 import ProfileScreen from './ProfileScreen';
+import CategoryProductsScreen from './CategoryProductsScreen';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator();
+
+function CatalogStack() {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen name="CatalogMain" component={CatalogScreen} options={{ title: 'Каталог' }} />
+      <Stack.Screen name="CategoryProductsScreen" component={CategoryProductsScreen} options={{ title: 'Товары категории' }} />
+    </Stack.Navigator>
+  );
+}
 
 export default function TabLayout({ setIsAuthenticated }: any) {
   return (
@@ -30,7 +42,7 @@ export default function TabLayout({ setIsAuthenticated }: any) {
       })}
     >
       <Tab.Screen name="Ads" component={AdsScreen} options={{ title: 'Объявления' }} />
-      <Tab.Screen name="Catalog" component={CatalogScreen} options={{ title: 'Каталог' }} />
+      <Tab.Screen name="Catalog" component={CatalogStack} options={{ title: 'Каталог' }} />
       <Tab.Screen name="Consult" component={ConsultScreen} options={{ title: 'Консультация' }} />
       <Tab.Screen name="Cart" component={CartScreen} options={{ title: 'Корзина' }} />
       <Tab.Screen name="Profile" options={{ title: 'Профиль' }}>

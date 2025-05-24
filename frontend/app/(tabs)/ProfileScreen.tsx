@@ -3,6 +3,8 @@ import { View, Text, Button, TextInput, FlatList, StyleSheet, Modal, TouchableOp
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../api';
 import { useAuthModal } from '../AuthContext';
+import { Picker } from '@react-native-picker/picker';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 interface ProfileScreenProps {
   setIsAuthenticated?: (v: boolean) => void;
@@ -33,6 +35,45 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
   const [editEmail, setEditEmail] = useState('');
   const [editAddress, setEditAddress] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // --- ТОВАРЫ ---
+  // Тип товара
+  type Product = {
+    id: number;
+    name: string;
+    categoryId: number;
+    description: string;
+    recommendations: string;
+    price: number;
+    stock: number;
+    active: boolean;
+  };
+
+  // Состояния для товаров
+  const [products, setProducts] = useState<Product[]>([]);
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [editProduct, setEditProduct] = useState<Product | null>(null);
+
+  // Форма товара
+  const [productName, setProductName] = useState('');
+  const [productCategory, setProductCategory] = useState<number | null>(null);
+  const [productDescription, setProductDescription] = useState('');
+  const [productRecommendations, setProductRecommendations] = useState('');
+  const [productPrice, setProductPrice] = useState('');
+  const [productStock, setProductStock] = useState('0');
+  const [productActive, setProductActive] = useState(true);
+
+  // Получить категории для выпадающего списка
+  const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+  const fetchCategories = async () => {
+    try {
+      const res = await api.get('/categories');
+      setCategories(res.data);
+    } catch {}
+  };
 
   // Получить объявления на модерацию
   const fetchAds = async () => {
@@ -66,6 +107,17 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
     } catch (e) {
       setUser(null); // сбрасываем user при ошибке
     }
+  };
+
+  // Получить товары пользователя
+  const fetchProducts = async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token || !user) return;
+      const res = await api.get('/products');
+      // Фильтруем только свои товары
+      setProducts(res.data.filter((p: any) => p.userId === user.id));
+    } catch {}
   };
 
   useEffect(() => {
@@ -128,6 +180,66 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
       // Можно добавить обработку ошибок
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Новый функционал: товары пользователя
+  // (удаляем дублирующее объявление состояний и категорий ниже)
+
+  // Открыть модалку для добавления товара
+  const openAddProduct = async () => {
+    await fetchCategories(); // обновить список категорий перед открытием модалки
+    setEditProduct(null);
+    setProductName('');
+    setProductCategory(categories[0]?.id ?? null);
+    setProductDescription('');
+    setProductRecommendations('');
+    setProductPrice('');
+    setProductStock('0');
+    setProductActive(true);
+    setShowProductModal(true);
+  };
+
+  // Открыть модалку для редактирования товара
+  const openEditProduct = async (product: Product) => {
+    await fetchCategories(); // обновить список категорий перед открытием модалки
+    setEditProduct(product);
+    setProductName(product.name);
+    setProductCategory(product.categoryId);
+    setProductDescription(product.description);
+    setProductRecommendations(product.recommendations);
+    setProductPrice(product.price.toString());
+    setProductStock(product.stock.toString());
+    setProductActive(product.active);
+    setShowProductModal(true);
+  };
+
+  // Добавить или сохранить товар через backend
+  const handleSaveProduct = async () => {
+    if (!productName.trim() || !productCategory || !productPrice.trim()) {
+      alert('Пожалуйста, заполните все обязательные поля: название, категория, цена.');
+      return;
+    }
+    const productData = {
+      name: productName,
+      categoryId: productCategory,
+      description: productDescription,
+      recommendations: productRecommendations,
+      price: Number(productPrice),
+      stock: Number(productStock),
+      active: productActive,
+      userId: user?.id,
+    };
+    try {
+      if (editProduct) {
+        await api.put(`/products/${editProduct.id}`, productData);
+      } else {
+        await api.post('/products', productData);
+      }
+      setShowProductModal(false);
+      fetchProducts();
+    } catch (e: any) {
+      alert(e.message || 'Ошибка сохранения товара');
     }
   };
 
@@ -206,6 +318,17 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
       marginBottom: 10,
       color: '#333',
     },
+    categoryBlock: {
+      backgroundColor: '#fff',
+      borderRadius: 10,
+      padding: 16,
+      marginBottom: 12,
+      elevation: 1,
+      shadowColor: '#000',
+      shadowOpacity: 0.05,
+      shadowRadius: 4,
+      shadowOffset: { width: 0, height: 2 },
+    },
   });
 
   // При открытии личной информации заполняем поля
@@ -280,6 +403,85 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
       <View style={styles.createBlock}>
         <Button title="Объявления на модерацию" onPress={() => setShowModeration(true)} />
       </View>
+      {/* Кнопка добавить товар */}
+      <View style={styles.createBlock}>
+        <Button title="Добавить товар" onPress={openAddProduct} />
+      </View>
+      {/* Модальное окно добавления/редактирования товара */}
+      <Modal visible={showProductModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>{editProduct ? 'Редактировать товар' : 'Добавить товар'}</Text>
+            <TextInput
+              placeholder="Название товара"
+              value={productName}
+              onChangeText={setProductName}
+              style={styles.input}
+              maxLength={50}
+            />
+            <Text style={{ marginBottom: 4 }}>Категория</Text>
+            <View style={{ borderWidth: 1, borderRadius: 8, marginBottom: 12 }}>
+              <FlatList
+                data={categories}
+                horizontal
+                keyExtractor={item => item.id.toString()}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={{ padding: 8, backgroundColor: productCategory === item.id ? '#e3f2fd' : '#fff', borderRadius: 8, marginRight: 8 }}
+                    onPress={() => setProductCategory(item.id)}
+                  >
+                    <Text>{item.name}</Text>
+                  </TouchableOpacity>
+                )}
+                ListEmptyComponent={<Text style={{ color: '#888', padding: 8 }}>Нет категорий</Text>}
+                contentContainerStyle={{ padding: 4 }}
+              />
+            </View>
+            <TextInput
+              placeholder="Описание (до 200 символов)"
+              value={productDescription}
+              onChangeText={setProductDescription}
+              style={styles.input}
+              maxLength={200}
+              multiline
+            />
+            <TextInput
+              placeholder="Рекомендации (до 200 символов)"
+              value={productRecommendations}
+              onChangeText={setProductRecommendations}
+              style={styles.input}
+              maxLength={200}
+              multiline
+            />
+            <TextInput
+              placeholder="Цена"
+              value={productPrice}
+              onChangeText={setProductPrice}
+              style={styles.input}
+              keyboardType="numeric"
+            />
+            <TextInput
+              placeholder="Остаток"
+              value={productStock}
+              onChangeText={setProductStock}
+              style={styles.input}
+              keyboardType="numeric"
+            />
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+              <Text style={{ marginRight: 8 }}>Активен</Text>
+              <TouchableOpacity
+                onPress={() => setProductActive(a => !a)}
+                style={{ width: 40, height: 24, borderRadius: 12, backgroundColor: productActive ? '#4caf50' : '#ccc', justifyContent: 'center' }}
+              >
+                <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff', marginLeft: productActive ? 18 : 2 }} />
+              </TouchableOpacity>
+            </View>
+            <Button title={editProduct ? 'Сохранить' : 'Добавить'} onPress={handleSaveProduct} />
+            <View style={{ height: 8 }} />
+            <Button title="Отмена" onPress={() => setShowProductModal(false)} />
+          </View>
+        </View>
+      </Modal>
       {/* Кнопка выхода или входа/регистрации */}
       <View style={{ marginTop: 16 }}>
         {user ? (
