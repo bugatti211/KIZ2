@@ -1,22 +1,124 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import AdsScreen from './index';
 import CatalogScreen from './CatalogScreen';
 import ConsultScreen from './ConsultScreen';
 import CartScreen from './CartScreen';
 import ProfileScreen from './ProfileScreen';
 import CategoryProductsScreen from './CategoryProductsScreen';
+import ProductCardScreen from './ProductCardScreen';
+import ProductManagementScreen from './ProductManagementScreen';
+import AddEditProductScreen from './AddEditProductScreen';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import AdsScreen from './AdsScreen';
+import NewSupplyScreen from './NewSupplyScreen';
+import SupplyHistoryScreen from './SupplyHistoryScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
+function ProfileStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="ProfileMain" component={ProfileScreen} options={{ title: 'Профиль', headerShown: true }}/>
+      <Stack.Screen 
+        name="ProductManagementScreen" 
+        component={ProductManagementScreen} 
+        options={{ 
+          title: 'Управление товарами',
+          headerShown: true,
+          headerStyle: {
+            backgroundColor: '#fff',
+          },
+          headerTintColor: '#000',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          }
+        }} 
+      />
+      <Stack.Screen 
+        name="NewSupply" 
+        component={NewSupplyScreen} 
+        options={{ 
+          title: 'Новая поставка',
+          headerShown: true,
+          headerStyle: {
+            backgroundColor: '#fff',
+          },
+          headerTintColor: '#000',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          }
+        }} 
+      />
+      <Stack.Screen 
+        name="SupplyHistory" 
+        component={SupplyHistoryScreen} 
+        options={{ 
+          title: 'История поставок',
+          headerShown: true,
+          headerStyle: {
+            backgroundColor: '#fff',
+          },
+          headerTintColor: '#000',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          }
+        }} 
+      />
+      <Stack.Screen 
+        name="AddEditProductScreen" 
+        component={AddEditProductScreen} 
+        options={({ route }: any) => ({ 
+          title: route.params?.product ? 'Редактировать товар' : 'Новый товар',
+          headerShown: true,
+          headerStyle: {
+            backgroundColor: '#fff',
+          },
+          headerTintColor: '#000',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          }
+        })} 
+      />
+    </Stack.Navigator>
+  );
+}
+
 function CatalogStack() {
   return (
-    <Stack.Navigator>
-      <Stack.Screen name="CatalogMain" component={CatalogScreen} options={{ title: 'Каталог' }} />
-      <Stack.Screen name="CategoryProductsScreen" component={CategoryProductsScreen} options={{ title: 'Товары категории' }} />
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="CatalogMain" component={CatalogScreen} options={{ title: 'Каталог', headerShown: true }} />
+      <Stack.Screen 
+        name="CategoryProductsScreen" 
+        component={CategoryProductsScreen} 
+        options={({ route }: any) => ({ 
+          title: route.params?.category || 'Товары категории',
+          headerShown: true,
+          headerStyle: {
+            backgroundColor: '#fff',
+          },
+          headerTintColor: '#000',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+        })} 
+      />
+      <Stack.Screen 
+        name="ProductCardScreen" 
+        component={ProductCardScreen} 
+        options={({ route }: any) => ({ 
+          title: route.params?.product?.name || 'Товар',
+          headerShown: true,
+          headerStyle: {
+            backgroundColor: '#fff',
+          },
+          headerTintColor: '#000',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          }
+        })} 
+      />
     </Stack.Navigator>
   );
 }
@@ -26,7 +128,7 @@ export default function TabLayout({ setIsAuthenticated }: any) {
     <Tab.Navigator
       initialRouteName="Ads"
       screenOptions={({ route }) => ({
-        headerShown: true,
+        headerShown: route.name !== 'Catalog' && route.name !== 'Profile', // Show headers except for stacks
         title: getTabTitle(route.name),
         tabBarIcon: ({ color, size }) => {
           let iconName = '';
@@ -45,20 +147,18 @@ export default function TabLayout({ setIsAuthenticated }: any) {
       <Tab.Screen name="Catalog" component={CatalogStack} options={{ title: 'Каталог' }} />
       <Tab.Screen name="Consult" component={ConsultScreen} options={{ title: 'Консультация' }} />
       <Tab.Screen name="Cart" component={CartScreen} options={{ title: 'Корзина' }} />
-      <Tab.Screen name="Profile" options={{ title: 'Профиль' }}>
-        {props => <ProfileScreen {...props} setIsAuthenticated={setIsAuthenticated} />}
-      </Tab.Screen>
+      <Tab.Screen name="Profile" component={ProfileStack} />
     </Tab.Navigator>
   );
 }
 
 function getTabTitle(name: string) {
   switch (name) {
-    case 'Ads': return 'Объявления';
     case 'Catalog': return 'Каталог';
     case 'Consult': return 'Консультация';
     case 'Cart': return 'Корзина';
     case 'Profile': return 'Профиль';
+    case 'Ads': return 'Объявления';
     default: return '';
   }
 }

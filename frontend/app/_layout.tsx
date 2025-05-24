@@ -7,6 +7,7 @@ import React, { useEffect, useState } from 'react';
 import 'react-native-reanimated';
 import { ActivityIndicator, AppState, Button, Modal, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { NavigationContainer } from '@react-navigation/native';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -62,10 +63,12 @@ export default function AppLayout() {
   }
 
   return (
-    <AuthProvider>
-      <RootLayoutNav />
-      <AuthModalContent />
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <RootLayoutNav />
+        <AuthModalContent />
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }
 

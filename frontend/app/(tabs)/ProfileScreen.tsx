@@ -4,7 +4,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../api';
 import { useAuthModal } from '../AuthContext';
 import { Picker } from '@react-native-picker/picker';
-import Ionicons from 'react-native-vector-icons/Ionicons';
 
 interface ProfileScreenProps {
   setIsAuthenticated?: (v: boolean) => void;
@@ -21,6 +20,7 @@ interface ProfileUser {
 
 export default function ProfileScreen({ setIsAuthenticated, navigation, route }: ProfileScreenProps) {
   const [showCreate, setShowCreate] = useState(false);
+  const [showSupplyModal, setShowSupplyModal] = useState(false);
   const [adText, setAdText] = useState('');
   const [adPhone, setAdPhone] = useState('');
   const [ads, setAds] = useState<any[]>([]);
@@ -265,7 +265,7 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
     },
     modalOverlay: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.4)',
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
       justifyContent: 'center',
       alignItems: 'center',
     },
@@ -284,8 +284,7 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
     modalTitle: {
       fontSize: 20,
       fontWeight: 'bold',
-      marginBottom: 12,
-      textAlign: 'center',
+      marginBottom: 15,
     },
     input: {
       borderWidth: 1,
@@ -329,6 +328,45 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
       shadowRadius: 4,
       shadowOffset: { width: 0, height: 2 },
     },
+    supplyButtonsContainer: {
+      gap: 12,
+      marginBottom: 16,
+    },
+    supplyButton: {
+      backgroundColor: '#2196F3',
+      marginVertical: 5,
+      width: '100%',
+    },
+    modalView: {
+      backgroundColor: 'white',
+      borderRadius: 20,
+      padding: 35,
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.25,
+      shadowRadius: 4,
+      elevation: 5,
+      width: '80%',
+    },
+    button: {
+      borderRadius: 10,
+      padding: 10,
+      elevation: 2,
+      width: '100%',
+      marginBottom: 10,
+    },
+    closeButton: {
+      backgroundColor: '#e53935',
+    },
+    buttonText: {
+      color: 'white',
+      fontWeight: 'bold',
+      textAlign: 'center',
+    },
   });
 
   // При открытии личной информации заполняем поля
@@ -339,6 +377,48 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
       setEditAddress(user.address || '');
     }
   }, [showPersonalInfo, user]);
+
+  const SupplyModal = () => (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={showSupplyModal}
+      onRequestClose={() => setShowSupplyModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalView}>
+          <Text style={styles.modalTitle}>Поставки</Text>
+          
+          <TouchableOpacity
+            style={[styles.button, styles.supplyButton]}
+            onPress={() => {
+              setShowSupplyModal(false);
+              navigation.navigate('NewSupply');
+            }}
+          >
+            <Text style={styles.buttonText}>Новая</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.button, styles.supplyButton]}
+            onPress={() => {
+              setShowSupplyModal(false);
+              navigation.navigate('SupplyHistory');
+            }}
+          >
+            <Text style={styles.buttonText}>История</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.button, styles.closeButton]}
+            onPress={() => setShowSupplyModal(false)}
+          >
+            <Text style={styles.buttonText}>Закрыть</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
 
   return (
     <View style={{ flex: 1, padding: 20 }}>
@@ -402,11 +482,47 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
       {/* Кнопка для показа объявлений на модерацию */}
       <View style={styles.createBlock}>
         <Button title="Объявления на модерацию" onPress={() => setShowModeration(true)} />
-      </View>
-      {/* Кнопка добавить товар */}
+      </View>      {/* Кнопка управления товарами */}
       <View style={styles.createBlock}>
-        <Button title="Добавить товар" onPress={openAddProduct} />
+        <Button title="Управление товарами" onPress={() => navigation.navigate('ProductManagementScreen')} />
       </View>
+      {/* Кнопка поставок */}
+      <View style={styles.createBlock}>
+        <Button title="Поставки" onPress={() => setShowSupplyModal(true)} />
+      </View>      {/* Модальное окно поставок */}
+      <Modal visible={showSupplyModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalView}>
+            <Text style={styles.modalTitle}>Поставки</Text>
+            <TouchableOpacity
+              style={[styles.button, styles.supplyButton]}
+              onPress={() => {
+                setShowSupplyModal(false);
+                navigation.navigate('NewSupply');
+              }}
+            >
+              <Text style={styles.buttonText}>Новая</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.button, styles.supplyButton]}
+              onPress={() => {
+                setShowSupplyModal(false);
+                navigation.navigate('SupplyHistory');
+              }}
+            >
+              <Text style={styles.buttonText}>История</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.button, styles.closeButton]}
+              onPress={() => setShowSupplyModal(false)}
+            >
+              <Text style={styles.buttonText}>Закрыть</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
       {/* Модальное окно добавления/редактирования товара */}
       <Modal visible={showProductModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
@@ -510,7 +626,7 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
       <Modal visible={showModeration} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { maxHeight: '80%' }]}>
-            <Text style={styles.modalTitle}>Объявления на модерации</Text>
+            <Text style={styles.modalTitle}>Объявления на модерацию</Text>
             {loading ? (
               <ActivityIndicator size="large" />
             ) : (
@@ -538,6 +654,7 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
           </View>
         </View>
       </Modal>
+      <SupplyModal />
     </View>
   );
 }

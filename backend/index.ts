@@ -4,6 +4,7 @@ import User from './user.model';
 import Ad from './ad.model';
 import Category from './category.model';
 import Product from './product.model';
+import { Supply, SupplyItem } from './supply.model';
 import { asyncHandler } from './asyncHandler';
 import { authMiddleware } from './authMiddleware';
 import type { Request, Response } from 'express';
@@ -36,6 +37,12 @@ Ad.sync();
 
 // Синхронизация модели Product с БД
 Product.sync();
+
+// Синхронизация модели Supply с БД
+Supply.sync();
+
+// Синхронизация модели SupplyItem с БД
+SupplyItem.sync();
 
 // CRUD роуты для User
 app.post('/users', asyncHandler(async (req: Request, res: Response) => {
@@ -199,11 +206,79 @@ app.put('/products/:id', asyncHandler(async (req: Request, res: Response) => {
   res.json(product);
 }));
 
+app.patch('/products/:id', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
+  const product = await Product.findByPk(req.params.id);
+  if (!product) return res.status(404).json({ error: 'Товар не найден' });
+  
+  if (typeof req.body.active !== 'boolean') {
+    return res.status(400).json({ error: 'Поле active должно быть boolean' });
+  }
+  
+  await product.update({ active: req.body.active });
+  res.json(product);
+}));
+
 app.delete('/products/:id', asyncHandler(async (req: Request, res: Response) => {
   const product = await Product.findByPk(req.params.id);
   if (!product) return res.status(404).json({ error: 'Not found' });
   await product.destroy();
   res.json({ success: true });
+}));
+
+// Endpoints для поставок
+app.post('/supplies', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
+  const { items } = req.body;
+  
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'Необходимо указать товары для поставки' });
+  }
+
+  const supply = await Supply.create({});
+
+  try {
+    // Создаем записи о поставке и обновляем количество товаров
+    for (const item of items) {
+      const { productId, quantity } = item;
+      
+      if (!productId || !quantity || quantity <= 0) {
+        throw new Error('Неверные данные поставки');
+      }
+
+      const product = await Product.findByPk(productId);
+      if (!product) {
+        throw new Error(`Товар с ID ${productId} не найден`);
+      }
+
+      // Создаем запись о позиции в поставке
+      await SupplyItem.create({
+        supplyId: supply.id,
+        productId,
+        quantity
+      });
+
+      // Обновляем количество товара
+      await product.update({
+        stock: product.stock + quantity
+      });
+    }
+
+    res.status(201).json(supply);
+  } catch (e) {
+    // В случае ошибки удаляем поставку
+    await supply.destroy();
+    throw e;
+  }
+}));
+
+app.get('/supplies', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
+  const supplies = await Supply.findAll({
+    include: [{
+      model: SupplyItem,
+      include: [{ model: Product }]
+    }],
+    order: [['date', 'DESC']]
+  });
+  res.json(supplies);
 }));
 
 app.listen(PORT, () => {
