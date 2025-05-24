@@ -40,8 +40,7 @@ export default function ProductCardScreen() {
         />
 
         {/* Основная информация */}
-        <View style={styles.mainInfo}>
-          <Text style={styles.price}>{product.price} ₽</Text>
+        <View style={styles.mainInfo}>          <Text style={styles.price}>{product.price.toLocaleString()} ₽</Text>
           <Text style={styles.stockInfo} numberOfLines={1}>
             {product.stock > 0 
               ? <Text style={{ color: '#388e3c' }}>● В наличии: {product.stock} шт.</Text>
@@ -111,11 +110,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 24,
-  },
-  price: {
-    fontSize: 24,
+  },  price: {
+    fontSize: 28,
     fontWeight: 'bold',
-    color: '#222',
+    color: '#4caf50',
   },
   stockInfo: {
     fontSize: 16,

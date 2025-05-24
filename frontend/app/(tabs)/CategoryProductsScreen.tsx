@@ -7,9 +7,9 @@ import api from '../api';
 export default function CategoryProductsScreen() {
   const route = useRoute();
   // @ts-ignore
-  const { category, categoryId } = route.params || {};
-  const [products, setProducts] = useState<any[]>([]);
+  const { category, categoryId } = route.params || {};  const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null);
   const navigation = useNavigation();
   const isFocused = useIsFocused();
 
@@ -58,9 +58,37 @@ export default function CategoryProductsScreen() {
         <Text style={{ color: 'red', fontSize: 16 }}>Ошибка: параметры категории не переданы.</Text>
       </View>
     );
-  }
+  }  const sortProducts = () => {
+    if (!products.length) return;
+    
+    let newSortOrder: 'asc' | 'desc' | null;
+    if (!sortOrder) newSortOrder = 'asc';
+    else if (sortOrder === 'asc') newSortOrder = 'desc';
+    else newSortOrder = null;
+    
+    setSortOrder(newSortOrder);
+    
+    const sortedProducts = [...products].sort((a, b) => {
+      if (!newSortOrder) return products.findIndex(p => p.id === a.id) - products.findIndex(p => p.id === b.id);
+      return newSortOrder === 'asc' ? a.price - b.price : b.price - a.price;
+    });
+    
+    setProducts(sortedProducts);
+  };
+
   return (
     <View style={{ flex: 1, padding: 20 }}>
+      <TouchableOpacity 
+        style={styles.sortButton} 
+        onPress={sortProducts}
+      >
+        <Text style={styles.sortButtonText}>
+          {sortOrder === 'asc' ? '↑ По возрастанию цены' : 
+           sortOrder === 'desc' ? '↓ По убыванию цены' : 
+           '⇅ Сортировать по цене'}
+        </Text>
+      </TouchableOpacity>
+      
       {loading ? (
         <ActivityIndicator size="large" />
       ) : (
@@ -85,13 +113,12 @@ export default function CategoryProductsScreen() {
                       </Text>
                       <Text style={{ fontSize: 12, color: '#888', marginRight: 12 }}>
                         {item.stock > 0 ? `В наличии` : 'Нет'}
-                      </Text>
-                      <TouchableOpacity 
-                        style={{ backgroundColor: item.stock > 0 ? '#4caf50' : '#ccc', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 14, marginLeft: 'auto' }} 
+                      </Text>                      <TouchableOpacity 
+                        style={[styles.priceButton, { backgroundColor: item.stock > 0 ? '#4caf50' : '#ccc' }]} 
                         disabled={item.stock <= 0}
                         onPress={() => openProductCard(item)}
                       >
-                        <Text style={{ color: '#fff', fontWeight: 'bold' }}>Купить</Text>
+                        <Text style={styles.priceText}>{item.price.toLocaleString()} ₽</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -113,4 +140,27 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: '#eee',
   },
+  sortButton: {
+    backgroundColor: '#f0f0f0',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  sortButtonText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  priceButton: {
+    backgroundColor: '#4caf50',
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    marginLeft: 'auto',
+  },
+  priceText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  }
 });
