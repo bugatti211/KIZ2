@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator, Switch, Alert, RefreshControl } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator, Switch, Alert, RefreshControl, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { HeaderBackButton, HeaderBackButtonProps } from '@react-navigation/elements';
@@ -24,6 +24,30 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  categoryFilter: {
+    marginBottom: 16,
+  },
+  categoriesContainer: {
+    flexDirection: 'row',
+    paddingVertical: 4,
+  },
+  categoryButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#f0f0f0',
+    marginRight: 8,
+  },
+  categoryButtonActive: {
+    backgroundColor: '#2196F3',
+  },
+  categoryButtonText: {
+    color: '#666',
+    fontSize: 14,
+  },
+  categoryButtonTextActive: {
+    color: '#fff',
   },
   addButton: {
     flexDirection: 'row',
@@ -86,11 +110,11 @@ const styles = StyleSheet.create({
 });
 
 export default function ProductManagementScreen() {
-  const isFocused = useIsFocused();
-  const [products, setProducts] = useState<Product[]>([]);
+  const isFocused = useIsFocused();  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const navigation = useNavigation<NavigationProp>();
 
   // Set up header back button
@@ -207,11 +231,50 @@ export default function ProductManagementScreen() {
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" />
       </View>
-    );
-  }
+    );  }
+
+  const filteredProducts = products.filter(product => 
+    selectedCategory ? product.categoryId === selectedCategory : true
+  );
 
   return (
     <View style={styles.container}>
+      <View style={styles.categoryFilter}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          style={styles.categoriesContainer}
+        >
+          <TouchableOpacity
+            style={[
+              styles.categoryButton,
+              !selectedCategory && styles.categoryButtonActive
+            ]}
+            onPress={() => setSelectedCategory(null)}
+          >
+            <Text style={[
+              styles.categoryButtonText,
+              !selectedCategory && styles.categoryButtonTextActive
+            ]}>Все</Text>
+          </TouchableOpacity>
+          {categories.map(cat => (
+            <TouchableOpacity
+              key={cat.id}
+              style={[
+                styles.categoryButton,
+                selectedCategory === cat.id && styles.categoryButtonActive
+              ]}
+              onPress={() => setSelectedCategory(cat.id)}
+            >
+              <Text style={[
+                styles.categoryButtonText,
+                selectedCategory === cat.id && styles.categoryButtonTextActive
+              ]}>{cat.name}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
       <TouchableOpacity 
         style={styles.addButton}
         onPress={handleAddProduct}
@@ -221,7 +284,7 @@ export default function ProductManagementScreen() {
       </TouchableOpacity>
 
       <FlatList
-        data={products}
+        data={filteredProducts}
         keyExtractor={item => item.id.toString()}
         refreshControl={
           <RefreshControl
@@ -241,11 +304,18 @@ export default function ProductManagementScreen() {
                 {item.price} ₽ • {item.stock > 0 ? `${item.stock} шт.` : 'Нет в наличии'}
               </Text>
             </View>
-            
-            <View style={styles.controls}>
+              <View style={styles.controls}>
               <Switch
                 value={item.active}
-                onValueChange={() => toggleProductActive(item.id, item.active)}
+                onValueChange={() => {
+                  const category = categories.find(c => c.id === item.categoryId);
+                  if (category?.name === 'Поставки новые') {
+                    Alert.alert('Внимание', 'Нельзя изменить статус товара из категории "Поставки новые"');
+                    return;
+                  }
+                  toggleProductActive(item.id, item.active);
+                }}
+                disabled={categories.find(c => c.id === item.categoryId)?.name === 'Поставки новые'}
                 trackColor={{ false: '#767577', true: '#81b0ff' }}
                 thumbColor={item.active ? '#2196F3' : '#f4f3f4'}
               />

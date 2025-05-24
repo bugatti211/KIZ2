@@ -5,7 +5,11 @@ import {
   FlatList,
   StyleSheet,
   ActivityIndicator,
-  Alert
+  Alert,
+  RefreshControl,
+  Modal,
+  TouchableOpacity,
+  ScrollView
 } from 'react-native';
 import { HeaderBackButton } from '@react-navigation/elements';
 import { useNavigation } from '@react-navigation/native';
@@ -26,10 +30,13 @@ interface Supply {
 
 export default function SupplyHistoryScreen() {
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [supplies, setSupplies] = useState<Supply[]>([]);
+  const [selectedSupply, setSelectedSupply] = useState<Supply | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
   const navigation = useNavigation();
 
-  // Set up header back button without label
+  // Настройка кнопки "Назад"
   useEffect(() => {
     navigation.setOptions({
       headerLeft: () => (
@@ -41,21 +48,29 @@ export default function SupplyHistoryScreen() {
     });
   }, [navigation]);
 
-  // Fetch supplies when component mounts
+  // Загрузка поставок при монтировании компонента
   useEffect(() => {
     fetchSupplies();
   }, []);
-
   const fetchSupplies = async () => {
-    setLoading(true);
     try {
       const response = await api.get('/supplies');
-      setSupplies(response.data);
-    } catch (e) {
-      Alert.alert('Ошибка', 'Не удалось загрузить историю поставок');
+      setSupplies(response.data || []); // Ensure we always have an array
+    } catch (e: any) {
+      console.error('Error fetching supplies:', e);      Alert.alert(
+        'Ошибка',
+        'Не удалось загрузить историю поставок: ' + (e?.response?.data?.error || e?.message || 'Ошибка сервера')
+      );
+      setSupplies([]); // Reset to empty array on error
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchSupplies();
   };
 
   const formatDate = (dateStr: string) => {
@@ -72,7 +87,7 @@ export default function SupplyHistoryScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color="#2196F3" />
       </View>
     );
   }
@@ -82,29 +97,76 @@ export default function SupplyHistoryScreen() {
       <FlatList
         data={supplies}
         keyExtractor={item => item.id.toString()}
-        renderItem={({ item }) => (
-          <View style={styles.supplyItem}>
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#2196F3']}
+          />
+        }        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={styles.supplyItem}
+            onPress={() => {
+              setSelectedSupply(item);
+              setModalVisible(true);
+            }}
+          >
             <Text style={styles.supplyDate}>
               {formatDate(item.date)}
             </Text>
-            <View style={styles.itemsContainer}>
-              {item.items.map(supplyItem => (
-                <View key={supplyItem.id} style={styles.supplyItemRow}>
-                  <Text style={styles.productName} numberOfLines={1}>
-                    {supplyItem.product.name}
-                  </Text>
-                  <Text style={styles.quantity}>
-                    {supplyItem.quantity} шт.
-                  </Text>
-                </View>
-              ))}
-            </View>
-          </View>
+            <Text style={styles.totalItems}>
+              Товаров в поставке: {item.items.length}
+            </Text>
+            <Text style={styles.tapHint}>
+              Нажмите для просмотра деталей
+            </Text>
+          </TouchableOpacity>
         )}
         ListEmptyComponent={
           <Text style={styles.emptyText}>История поставок пуста</Text>
         }
       />
+
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => {
+          setModalVisible(false);
+          setSelectedSupply(null);
+        }}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>
+              Детали поставки от {selectedSupply ? formatDate(selectedSupply.date) : ''}
+            </Text>
+            
+            <ScrollView style={styles.modalScroll}>
+              {selectedSupply?.items.map(item => (
+                <View key={item.id} style={styles.supplyItemRow}>
+                  <Text style={styles.productName} numberOfLines={1}>
+                    {item.product.name}
+                  </Text>
+                  <Text style={styles.quantity}>
+                    {item.quantity} шт.
+                  </Text>
+                </View>
+              ))}
+            </ScrollView>
+
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => {
+                setModalVisible(false);
+                setSelectedSupply(null);
+              }}
+            >
+              <Text style={styles.closeButtonText}>Закрыть</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -130,15 +192,47 @@ const styles = StyleSheet.create({
   supplyDate: {
     fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 12,
+    marginBottom: 8,
   },
-  itemsContainer: {
-    gap: 8,
+  totalItems: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  tapHint: {
+    fontSize: 12,
+    color: '#999',
+    fontStyle: 'italic',
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    width: '90%',
+    maxHeight: '80%',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  modalScroll: {
+    maxHeight: '80%',
   },
   supplyItemRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
   },
   productName: {
     fontSize: 14,
@@ -147,6 +241,17 @@ const styles = StyleSheet.create({
   },
   quantity: {
     fontSize: 14,
+    fontWeight: '500',
+  },
+  closeButton: {
+    backgroundColor: '#2196F3',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 16,
+  },
+  closeButtonText: {
+    color: '#fff',
+    textAlign: 'center',
     fontWeight: '500',
   },
   emptyText: {

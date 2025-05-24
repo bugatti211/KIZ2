@@ -118,16 +118,17 @@ export default function AddEditProductScreen() {
     }
 
     setSaving(true);
-    try {
-      const productData: CreateProductDto = {
-        name: name.trim(),
-        categoryId,
-        description: description.trim(),
-        recommendations: recommendations.trim(),
-        price: Number(price),
-        stock: Number(stock),
-        active,
-        userId: 0, // Будет установлено на сервере из токена
+    try {    // If product is in "Поставки новые" category, force active to false
+    const isNewSupplyCategory = categories.find(c => c.id === categoryId)?.name === 'Поставки новые';
+    const productData: CreateProductDto = {
+      name: name.trim(),
+      categoryId,
+      description: description.trim(),
+      recommendations: recommendations.trim(),
+      price: Number(price),
+      stock: Number(stock),
+      active: isNewSupplyCategory ? false : active,
+      userId: 0, // Будет установлено на сервере из токена
       };
 
       if (editingProduct) {
@@ -167,12 +168,16 @@ export default function AddEditProductScreen() {
           >
             {categories.map(category => (
               <TouchableOpacity
-                key={category.id}
-                style={[
+                key={category.id}                style={[
                   styles.categoryButton,
                   categoryId === category.id && styles.categoryButtonActive
                 ]}
-                onPress={() => setCategoryId(category.id)}
+                onPress={() => {
+                  setCategoryId(category.id);
+                  if (category.name === 'Поставки новые') {
+                    setActive(false);
+                  }
+                }}
               >
                 <Text style={[
                   styles.categoryButtonText,
@@ -223,13 +228,19 @@ export default function AddEditProductScreen() {
           placeholder="Введите количество"
           keyboardType="numeric"
         />
-        {stockError ? <Text style={styles.errorText}>{stockError}</Text> : null}
-
-        <View style={styles.switchContainer}>
+        {stockError ? <Text style={styles.errorText}>{stockError}</Text> : null}        <View style={styles.switchContainer}>
           <Text style={styles.label}>Активен</Text>
           <Switch
             value={active}
-            onValueChange={setActive}
+            onValueChange={(newValue) => {
+              const isNewSupplyCategory = categories.find(c => c.id === categoryId)?.name === 'Поставки новые';
+              if (isNewSupplyCategory) {
+                Alert.alert('Внимание', 'Нельзя изменить статус товара из категории "Поставки новые"');
+                return;
+              }
+              setActive(newValue);
+            }}
+            disabled={categories.find(c => c.id === categoryId)?.name === 'Поставки новые'}
             trackColor={{ false: '#767577', true: '#81b0ff' }}
             thumbColor={active ? '#2196F3' : '#f4f3f4'}
           />

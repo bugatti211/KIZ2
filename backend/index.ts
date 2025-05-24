@@ -29,6 +29,26 @@ sequelize.authenticate()
   .then(() => console.log('Database connected'))
   .catch((err: any) => console.error('Database connection error:', err));
 
+// Ensure "Поставки новые" category exists
+const ensureNewSuppliesCategory = async () => {
+  try {
+    await Category.findOrCreate({
+      where: { name: 'Поставки новые' },
+      defaults: { name: 'Поставки новые' }
+    });
+  } catch (error) {
+    console.error('Error creating default category:', error);
+  }
+};
+
+// Call this after DB connection is established
+sequelize.authenticate()
+  .then(() => {
+    console.log('Database connected');
+    ensureNewSuppliesCategory();
+  })
+  .catch((err: any) => console.error('Database connection error:', err));
+
 // Синхронизация модели User с БД
 User.sync();
 
@@ -271,14 +291,32 @@ app.post('/supplies', authMiddleware as any, asyncHandler(async (req: Request, r
 }));
 
 app.get('/supplies', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
-  const supplies = await Supply.findAll({
-    include: [{
-      model: SupplyItem,
-      include: [{ model: Product }]
-    }],
-    order: [['date', 'DESC']]
-  });
-  res.json(supplies);
+  try {
+    const supplies = await Supply.findAll({
+      include: [{
+        model: SupplyItem,
+        as: 'items',
+        include: [{ 
+          model: Product,
+          as: 'product',
+          attributes: ['id', 'name']
+        }]
+      }],
+      order: [['date', 'DESC']]
+    });
+    
+    if (!supplies || supplies.length === 0) {
+      return res.status(200).json([]); // Return empty array instead of 404
+    }
+
+    res.json(supplies);
+  } catch (error: any) {
+    console.error('Error fetching supplies:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch supplies',
+      details: error.message 
+    });
+  }
 }));
 
 app.listen(PORT, () => {
