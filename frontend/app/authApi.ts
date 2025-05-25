@@ -26,5 +26,13 @@ export async function getUsers() {
   return res.data;
 }
 
+export async function getContacts() {
+  const res = await api.get('/api/contacts');
+  return {
+    telegram: res.data.telegram || '',
+    whatsapp: res.data.whatsapp || ''
+  };
+}
+
 // No default export needed for authApi.ts, but to satisfy the error, export an empty default:
 export default {};

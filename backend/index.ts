@@ -4,6 +4,7 @@ import User from './user.model';
 import Ad from './ad.model';
 import Category from './category.model';
 import Product from './product.model';
+import Contact from './contact.model';
 import { Supply, SupplyItem } from './supply.model';
 import { asyncHandler } from './asyncHandler';
 import { authMiddleware } from './authMiddleware';
@@ -335,6 +336,15 @@ app.get('/supplies', authMiddleware as any, asyncHandler(async (req: Request, re
       details: error.message 
     });
   }
+}));
+
+// Get contacts endpoint
+app.get('/api/contacts', asyncHandler(async (req: Request, res: Response) => {
+  const contacts = await Contact.findOne();
+  if (!contacts) {
+    return res.status(404).json({ message: 'Contacts not found' });
+  }
+  res.json(contacts);
 }));
 
 app.listen(PORT, () => {

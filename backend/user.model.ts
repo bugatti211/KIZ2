@@ -8,6 +8,8 @@ interface UserAttributes {
   email: string;
   password: string;
   address?: string;
+  telegram?: string;
+  whatsapp?: string;
 }
 
 interface UserCreationAttributes extends Optional<UserAttributes, 'id'> {}
