@@ -1,5 +1,6 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from './sequelize';
+import Category from './category.model';
 
 interface ProductAttributes {
   id: number;
@@ -71,8 +72,13 @@ Product.init(
   {
     sequelize,
     modelName: 'Product',
-    tableName: 'products',
-  }
+    tableName: 'products',  }
 );
+
+// Устанавливаем связь с Category
+Product.belongsTo(Category, {
+  foreignKey: 'categoryId',
+  as: 'category'
+});
 
 export default Product;

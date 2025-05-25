@@ -30,15 +30,18 @@ export default function CategoryProductsScreen() {
     if (isFocused) {
       fetchProducts();
     }
-  }, [isFocused, categoryId]);const fetchProducts = async () => {
+  }, [isFocused, categoryId]);  const fetchProducts = async () => {
     setLoading(true);
     try {
       const res = await api.get('/products');
       // Фильтруем по категории и активности, убедившись что товар активен
-      const filteredProducts = res.data.filter((p: any) => 
-        p.categoryId === categoryId && 
-        p.active === true // Явно проверяем что товар активен
-      );
+      const filteredProducts = res.data
+        .filter((p: any) => p.categoryId === categoryId && p.active === true)
+        .map((p: any) => ({
+          ...p,
+          stock: Number(p.stock), // преобразуем stock в число
+          category: p.category || { id: categoryId, name: category } // используем категорию из API или из параметров
+        }));
       setProducts(filteredProducts);
     } catch (e) {
       setProducts([]);
