@@ -31,9 +31,8 @@ module.exports = {
       price: {
         type: Sequelize.FLOAT,
         allowNull: false,
-      },
-      stock: {
-        type: Sequelize.INTEGER,
+      },      stock: {
+        type: Sequelize.DECIMAL(10, 2),
         allowNull: false,
         defaultValue: 0,
       },

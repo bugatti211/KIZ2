@@ -68,9 +68,16 @@ export default function NewSupplyScreen() {
       { productId: product.id, quantity: 0, product }
     ]);
   };
-
   const handleUpdateQuantity = (productId: number, quantity: string) => {
-    const numQuantity = parseInt(quantity) || 0;
+    const product = products.find(p => p.id === productId);
+    const isWeightCategory = product?.category?.name === 'На развес';
+    
+    let numQuantity;
+    if (isWeightCategory) {
+      numQuantity = parseFloat(quantity) || 0;
+    } else {
+      numQuantity = parseInt(quantity) || 0;
+    }
     
     setSelectedProducts(selectedProducts.map(item => 
       item.productId === productId 
@@ -87,10 +94,14 @@ export default function NewSupplyScreen() {
     if (selectedProducts.length === 0) {
       Alert.alert('Ошибка', 'Добавьте хотя бы один товар');
       return;
-    }
-
-    if (selectedProducts.some(item => item.quantity <= 0)) {
-      Alert.alert('Ошибка', 'Укажите положительное количество для всех товаров');
+    }    if (selectedProducts.some(item => {
+      const isWeightCategory = item.product.category?.name === 'На развес';
+      if (isWeightCategory) {
+        return item.quantity <= 0 || !Number.isFinite(item.quantity);
+      }
+      return item.quantity <= 0 || !Number.isInteger(item.quantity);
+    })) {
+      Alert.alert('Ошибка', 'Укажите корректное количество для всех товаров');
       return;
     }
 
@@ -143,13 +154,12 @@ export default function NewSupplyScreen() {
               <Text style={styles.productName} numberOfLines={1}>
                 {item.product.name}
               </Text>
-              <View style={styles.quantityContainer}>
-                <TextInput
+              <View style={styles.quantityContainer}>                <TextInput
                   style={styles.quantityInput}
-                  keyboardType="numeric"
+                  keyboardType={item.product.category?.name === 'На развес' ? 'decimal-pad' : 'numeric'}
                   value={item.quantity.toString()}
                   onChangeText={(value) => handleUpdateQuantity(item.productId, value)}
-                  placeholder="0"
+                  placeholder={`0 ${item.product.category?.name === 'На развес' ? 'кг' : 'шт.'}`}
                 />
                 <TouchableOpacity
                   onPress={() => handleRemoveProduct(item.productId)}

@@ -299,9 +299,10 @@ export default function ProductManagementScreen() {
               <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
               <Text style={styles.productCategory} numberOfLines={1}>
                 Категория: {getCategoryName(item.categoryId)}
-              </Text>
-              <Text style={styles.productPrice}>
-                {item.price} ₽ • {item.stock > 0 ? `${item.stock} шт.` : 'Нет в наличии'}
+              </Text>              <Text style={styles.productPrice}>
+                {item.price} ₽ • {item.stock > 0 
+                  ? `${getCategoryName(item.categoryId) === 'На развес' ? item.stock.toFixed(2) : item.stock} ${getCategoryName(item.categoryId) === 'На развес' ? 'кг' : 'шт.'}`
+                  : 'Нет в наличии'}
               </Text>
             </View>
               <View style={styles.controls}>

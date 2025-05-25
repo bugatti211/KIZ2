@@ -53,9 +53,8 @@ Product.init(
     price: {
       type: DataTypes.FLOAT,
       allowNull: false,
-    },
-    stock: {
-      type: DataTypes.INTEGER,
+    },    stock: {
+      type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
       defaultValue: 0,
     },

@@ -40,10 +40,11 @@ export default function ProductCardScreen() {
         />
 
         {/* Основная информация */}
-        <View style={styles.mainInfo}>          <Text style={styles.price}>{product.price.toLocaleString()} ₽</Text>
-          <Text style={styles.stockInfo} numberOfLines={1}>
+        <View style={styles.mainInfo}>          <Text style={styles.price}>{product.price.toLocaleString()} ₽</Text>          <Text style={styles.stockInfo} numberOfLines={1}>
             {product.stock > 0 
-              ? <Text style={{ color: '#388e3c' }}>● В наличии: {product.stock} шт.</Text>
+              ? <Text style={{ color: '#388e3c' }}>
+                  ● В наличии: {product.stock} {product.category?.name === 'На развес' ? 'кг' : 'шт.'}
+                </Text>
               : <Text style={{ color: '#d11a2a' }}>× Нет в наличии</Text>
             }
           </Text>

@@ -14,7 +14,7 @@ export interface Product {
   };
 }
 
-export type CreateProductDto = Omit<Product, 'id'>;
+export type CreateProductDto = Omit<Product, 'id' | 'userId'>;
 export type UpdateProductDto = Partial<CreateProductDto>;
 
 // Create a default export with proper type definition

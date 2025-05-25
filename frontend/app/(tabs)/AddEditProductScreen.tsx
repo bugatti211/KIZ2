@@ -81,18 +81,37 @@ export default function AddEditProductScreen() {
     }
     setPriceError('');
     return true;
-  };
-
-  const validateStock = (value: string) => {
+  };  const validateStock = (value: string) => {
     if (!value.trim()) {
       setStockError('Количество обязательно');
       return false;
     }
-    const numValue = Number(value);
-    if (isNaN(numValue) || numValue < 0 || !Number.isInteger(numValue)) {
-      setStockError('Введите целое неотрицательное число');
+    
+    // Заменяем запятую на точку для корректной обработки
+    const normalizedValue = value.replace(',', '.');
+    const numValue = Number(normalizedValue);
+    
+    if (isNaN(numValue) || numValue < 0) {
+      setStockError('Введите неотрицательное число');
       return false;
     }
+    
+    const isWeightCategory = categories.find(c => c.id === categoryId)?.name === 'На развес';
+    if (isWeightCategory) {
+      // Для весовых товаров - проверка на 2 знака после запятой
+      const decimalParts = normalizedValue.split('.');
+      if (!Number.isFinite(numValue) || (decimalParts.length > 1 && decimalParts[1].length > 2)) {
+        setStockError('Введите число с не более чем 2 знаками после запятой');
+        return false;
+      }
+    } else {
+      // Для штучных товаров - только целые числа
+      if (!Number.isInteger(numValue)) {
+        setStockError('Введите целое число для штучного товара');
+        return false;
+      }
+    }
+    
     setStockError('');
     return true;
   };
@@ -119,16 +138,13 @@ export default function AddEditProductScreen() {
 
     setSaving(true);
     try {    // If product is in "Поставки новые" category, force active to false
-    const isNewSupplyCategory = categories.find(c => c.id === categoryId)?.name === 'Поставки новые';
-    const productData: CreateProductDto = {
+    const isNewSupplyCategory = categories.find(c => c.id === categoryId)?.name === 'Поставки новые';    const productData: CreateProductDto = {
       name: name.trim(),
       categoryId,
       description: description.trim(),
-      recommendations: recommendations.trim(),
-      price: Number(price),
-      stock: Number(stock),
-      active: isNewSupplyCategory ? false : active,
-      userId: 0, // Будет установлено на сервере из токена
+      recommendations: recommendations.trim(),      price: Number(price),
+      stock: Number(stock.replace(',', '.')),
+      active: isNewSupplyCategory ? false : active
       };
 
       if (editingProduct) {
@@ -137,9 +153,10 @@ export default function AddEditProductScreen() {
         await api.post('/products', productData);
       }
 
-      navigation.goBack();
-    } catch (e: any) {
-      Alert.alert('Ошибка', e.message || 'Не удалось сохранить товар');
+      navigation.goBack();    } catch (e: any) {
+      const errorMessage = e.response?.data?.error || e.message || 'Не удалось сохранить товар';
+      Alert.alert('Ошибка', errorMessage);
+      console.error('Error creating product:', e);
     } finally {
       setSaving(false);
     }
@@ -218,15 +235,15 @@ export default function AddEditProductScreen() {
           placeholder="Введите цену"
           keyboardType="numeric"
         />
-        {priceError ? <Text style={styles.errorText}>{priceError}</Text> : null}
-
-        <Text style={styles.label}>Количество в наличии*</Text>
+        {priceError ? <Text style={styles.errorText}>{priceError}</Text> : null}        <Text style={styles.label}>
+          {`Количество в наличии${categories.find(c => c.id === categoryId)?.name === 'На развес' ? ' (кг)' : ' (шт)'}`}*
+        </Text>
         <TextInput
           value={stock}
           onChangeText={handleStockChange}
           style={[styles.input, stockError ? styles.inputError : null]}
-          placeholder="Введите количество"
-          keyboardType="numeric"
+          placeholder={`Введите количество${categories.find(c => c.id === categoryId)?.name === 'На развес' ? ' в килограммах' : ' штук'}`}
+          keyboardType={categories.find(c => c.id === categoryId)?.name === 'На развес' ? 'decimal-pad' : 'numeric'}
         />
         {stockError ? <Text style={styles.errorText}>{stockError}</Text> : null}        <View style={styles.switchContainer}>
           <Text style={styles.label}>Активен</Text>

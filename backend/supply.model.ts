@@ -61,9 +61,8 @@ SupplyItem.init(
         model: 'products',
         key: 'id'
       }
-    },
-    quantity: {
-      type: DataTypes.INTEGER,
+    },    quantity: {
+      type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
     },
   },

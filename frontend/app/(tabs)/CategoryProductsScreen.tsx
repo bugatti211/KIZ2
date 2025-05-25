@@ -110,10 +110,11 @@ export default function CategoryProductsScreen() {
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
                       <Text style={{ fontSize: 18, color: item.stock > 0 ? '#388e3c' : '#d11a2a', fontWeight: 'bold', marginRight: 8 }}>
                         {item.stock > 0 ? '●' : '×'}
-                      </Text>
-                      <Text style={{ fontSize: 12, color: '#888', marginRight: 12 }}>
-                        {item.stock > 0 ? `В наличии` : 'Нет'}
-                      </Text>                      <TouchableOpacity 
+                      </Text>                      <Text style={{ fontSize: 12, color: '#888', marginRight: 12 }}>
+                        {item.stock > 0 
+                          ? `В наличии: ${item.category?.name === 'На развес' ? item.stock.toFixed(2) : item.stock} ${item.category?.name === 'На развес' ? 'кг' : 'шт.'}`
+                          : 'Нет в наличии'}
+                      </Text><TouchableOpacity 
                         style={[styles.priceButton, { backgroundColor: item.stock > 0 ? '#4caf50' : '#ccc' }]} 
                         disabled={item.stock <= 0}
                         onPress={() => openProductCard(item)}

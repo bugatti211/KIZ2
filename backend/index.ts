@@ -210,12 +210,30 @@ app.get('/products/:id', asyncHandler(async (req: Request, res: Response) => {
   res.json(product);
 }));
 
-app.post('/products', asyncHandler(async (req: Request, res: Response) => {
+app.post('/products', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
   try {
-    const product = await Product.create(req.body);
+    // Получаем пользователя из запроса (добавляется middleware)
+    const { user } = req as any;
+    if (!user) {
+      return res.status(401).json({ error: 'Необходима авторизация' });
+    }
+
+    // Добавляем userId к данным товара
+    const productData = {
+      ...req.body,
+      userId: user.id
+    };
+
+    // Проверяем обязательные поля
+    if (!productData.name || !productData.categoryId || productData.price === undefined) {
+      return res.status(400).json({ error: 'Необходимо заполнить все обязательные поля' });
+    }
+
+    const product = await Product.create(productData);
     res.status(201).json(product);
   } catch (e: any) {
-    res.status(400).json({ error: e.message });
+    console.error('Error creating product:', e);
+    res.status(400).json({ error: e.message || 'Ошибка при создании товара' });
   }
 }));
 

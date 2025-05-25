@@ -24,6 +24,10 @@ interface Supply {
     product: {
       id: number;
       name: string;
+      category?: {
+        id: number;
+        name: string;
+      };
     };
   }[];
 }
@@ -144,12 +148,11 @@ export default function SupplyHistoryScreen() {
             
             <ScrollView style={styles.modalScroll}>
               {selectedSupply?.items.map(item => (
-                <View key={item.id} style={styles.supplyItemRow}>
-                  <Text style={styles.productName} numberOfLines={1}>
+                <View key={item.id} style={styles.supplyItemRow}>                  <Text style={styles.productName} numberOfLines={1}>
                     {item.product.name}
                   </Text>
                   <Text style={styles.quantity}>
-                    {item.quantity} шт.
+                    {item.product.category?.name === 'На развес' ? item.quantity.toFixed(2) : item.quantity} {item.product.category?.name === 'На развес' ? 'кг' : 'шт.'}
                   </Text>
                 </View>
               ))}
