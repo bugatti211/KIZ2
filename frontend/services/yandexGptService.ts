@@ -14,9 +14,16 @@ interface YandexGPTResponse {
   };
 }
 
-class YandexGPTService {  private readonly API_URL = 'https://llm.api.cloud.yandex.net/foundationModels/v1/completion';
-  private readonly API_KEY = '';
-  private readonly FOLDER_ID = 'b1gq0fsi6smsmo3bqpqj';
+import {
+  YANDEX_GPT_API_KEY,
+  YANDEX_GPT_FOLDER_ID,
+  YANDEX_GPT_MODEL_URI,
+} from '@env';
+
+class YandexGPTService {  
+  private readonly API_URL = 'https://llm.api.cloud.yandex.net/foundationModels/v1/completion';
+  private readonly API_KEY = YANDEX_GPT_API_KEY;
+  private readonly FOLDER_ID = YANDEX_GPT_FOLDER_ID;
 
   async sendMessage(message: string): Promise<string> {
     try {
@@ -28,7 +35,7 @@ class YandexGPTService {  private readonly API_URL = 'https://llm.api.cloud.yand
           'x-folder-id': this.FOLDER_ID
         },
         body: JSON.stringify({
-          modelUri: "gpt://b1gq0fsi6smsmo3bqpqj/yandexgpt/rc",
+          modelUri: YANDEX_GPT_MODEL_URI,
           completionOptions: {
             stream: false,
             maxTokens: 500,
