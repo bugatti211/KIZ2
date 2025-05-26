@@ -15,7 +15,7 @@ interface YandexGPTResponse {
 }
 
 class YandexGPTService {  private readonly API_URL = 'https://llm.api.cloud.yandex.net/foundationModels/v1/completion';
-  private readonly API_KEY = 'AQVNzeWYK4XOJbrAx-nivt1-pHPcV9vgV8az7g_W';
+  private readonly API_KEY = '';
   private readonly FOLDER_ID = 'b1gq0fsi6smsmo3bqpqj';
 
   async sendMessage(message: string): Promise<string> {
