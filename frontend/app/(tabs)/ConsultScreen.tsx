@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import * as React from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   View, 
   Text, 
@@ -10,7 +11,8 @@ import {
   ScrollView, 
   ActivityIndicator,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  Keyboard
 } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { getContacts } from '../authApi';
@@ -19,15 +21,28 @@ import { chatHistoryService, ChatMessage } from '../../services/chatHistoryServi
 
 export default function ConsultScreen() {
   const [activeTab, setActiveTab] = useState('employee');
-  const [contacts, setContacts] = useState({ telegram: '', whatsapp: '' });
-  const [loading, setLoading] = useState(true);
-  const [inputMessage, setInputMessage] = useState('');  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [contacts, setContacts] = useState({ telegram: '', whatsapp: '' });  const [loading, setLoading] = useState(true);
+  const [inputMessage, setInputMessage] = useState('');
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
-
   useEffect(() => {
     loadContacts();
     loadChatHistory();
+
+    const keyboardWillShow = Platform.OS === 'ios' 
+      ? Keyboard.addListener('keyboardWillShow', (e) => setKeyboardHeight(e.endCoordinates.height))
+      : Keyboard.addListener('keyboardDidShow', (e) => setKeyboardHeight(e.endCoordinates.height));
+    
+    const keyboardWillHide = Platform.OS === 'ios'
+      ? Keyboard.addListener('keyboardWillHide', () => setKeyboardHeight(0))
+      : Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
+
+    return () => {
+      keyboardWillShow.remove();
+      keyboardWillHide.remove();
+    };
   }, []);
 
   const loadChatHistory = async () => {
@@ -103,7 +118,6 @@ export default function ConsultScreen() {
       Alert.alert('Ошибка', 'Не удалось очистить историю чата');
     }
   };
-
   const renderMessage = (message: ChatMessage, index: number) => (
     <View 
       key={index} 
@@ -112,7 +126,12 @@ export default function ConsultScreen() {
         message.role === 'user' ? styles.userMessage : styles.assistantMessage
       ]}
     >
-      <Text style={styles.messageText}>{message.text}</Text>
+      <Text style={[
+        styles.messageText,
+        message.role === 'user' && styles.userMessageText
+      ]}>
+        {message.text}
+      </Text>
       <Text style={[
         styles.messageTime,
         message.role === 'user' ? styles.userMessageTime : styles.assistantMessageTime
@@ -149,9 +168,8 @@ export default function ConsultScreen() {
             )}
           </View>
         );      case 'ai':
-        return (
-          <KeyboardAvoidingView 
-            style={styles.chatContainer}
+        return (          <KeyboardAvoidingView 
+            style={[styles.chatContainer, { paddingBottom: keyboardHeight }]}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
           >
@@ -168,13 +186,14 @@ export default function ConsultScreen() {
                   <Text style={styles.typingText}>Ассистент печатает...</Text>
                 </View>
               )}
-            </ScrollView>
-            <View style={styles.inputContainer}>              <TextInput
+            </ScrollView>            <View style={styles.inputContainer}>              <TextInput
                 style={styles.input}
                 value={inputMessage}
                 onChangeText={setInputMessage}
                 placeholder="Введите сообщение..."
                 multiline
+                onSubmitEditing={() => inputMessage.trim() && sendMessage()}
+                blurOnSubmit={false}
               />
               <TouchableOpacity
                 style={[styles.sendButton, !inputMessage.trim() && styles.sendButtonDisabled]}
@@ -306,10 +325,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderWidth: 1,
     borderColor: '#e0e0e0',
-  },
-  messageText: {
+  },  messageText: {
     fontSize: 16,
     color: '#333',
+  },
+  userMessageText: {
+    color: 'white',
   },
   typingIndicator: {
     flexDirection: 'row',
@@ -327,17 +348,16 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#e0e0e0',
     gap: 8,
-  },
-  input: {
+  },  input: {
     flex: 1,
     minHeight: 40,
-    maxHeight: 100,
     backgroundColor: '#f5f5f5',
     borderRadius: 20,
     paddingHorizontal: 15,
     paddingRight: 45,
     paddingVertical: 10,
     fontSize: 16,
+    maxHeight: 100, // Ограничение максимальной высоты через стили
   },
   sendButton: {
     width: 32,
