@@ -1,5 +1,5 @@
 import express from 'express';
-import { Sequelize } from 'sequelize';
+import { Sequelize, Op } from 'sequelize';
 import User from './user.model';
 import Ad from './ad.model';
 import Category from './category.model';
@@ -9,6 +9,8 @@ import { Supply, SupplyItem } from './supply.model';
 import { asyncHandler } from './asyncHandler';
 import { authMiddleware } from './authMiddleware';
 import type { Request, Response } from 'express';
+import ChatMessage from './chat-message.model';
+
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
@@ -345,6 +347,48 @@ app.get('/api/contacts', asyncHandler(async (req: Request, res: Response) => {
     return res.status(404).json({ message: 'Contacts not found' });
   }
   res.json(contacts);
+}));
+
+// API для чата
+app.get('/api/chat/messages', asyncHandler(async (req: Request, res: Response) => {
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  
+  const messages = await ChatMessage.findAll({
+    where: {
+      timestamp: {
+        [Op.gte]: thirtyDaysAgo
+      }
+    },
+    order: [['timestamp', 'ASC']]
+  });
+  
+  res.json(messages);
+}));
+
+app.post('/api/chat/messages', asyncHandler(async (req: Request, res: Response) => {
+  const { role, text } = req.body;
+  
+  if (!role || !text) {
+    return res.status(400).json({ error: 'Role and text are required' });
+  }
+  
+  const message = await ChatMessage.create({
+    role,
+    text,
+    timestamp: new Date()
+  });
+  
+  res.status(201).json(message);
+}));
+
+app.delete('/api/chat/messages', asyncHandler(async (req: Request, res: Response) => {
+  await ChatMessage.destroy({
+    where: {},
+    truncate: true
+  });
+  
+  res.status(204).send();
 }));
 
 app.listen(PORT, () => {
