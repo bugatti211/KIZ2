@@ -12,9 +12,10 @@ interface ProductAttributes {
   stock: number;
   active: boolean;
   userId: number;
+  category?: Category; // Add category association type
 }
 
-interface ProductCreationAttributes extends Optional<ProductAttributes, 'id'> {}
+interface ProductCreationAttributes extends Optional<ProductAttributes, 'id' | 'category'> {}
 
 class Product extends Model<ProductAttributes, ProductCreationAttributes> implements ProductAttributes {
   public id!: number;
@@ -26,6 +27,7 @@ class Product extends Model<ProductAttributes, ProductCreationAttributes> implem
   public stock!: number;
   public active!: boolean;
   public userId!: number;
+  public category?: Category; // Add category association property
 }
 
 Product.init(

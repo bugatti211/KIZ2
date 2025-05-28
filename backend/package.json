@@ -14,8 +14,11 @@
   "description": "",
   "dependencies": {
     "@react-native-picker/picker": "^2.11.0",
+    "@types/express-session": "^1.18.1",
     "bcryptjs": "^3.0.2",
+    "connect-session-sequelize": "^7.1.7",
     "express": "^5.1.0",
+    "express-session": "^1.18.1",
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.16.0",
     "pg-hstore": "^2.3.4",

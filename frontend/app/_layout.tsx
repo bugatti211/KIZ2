@@ -16,6 +16,7 @@ import LoginScreen from './LoginScreen';
 import RegisterScreen from './RegisterScreen';
 import TabLayout from './(tabs)/_layout';
 import { AuthProvider } from './AuthContext';
+import { CartProvider } from './CartContext';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -65,8 +66,10 @@ export default function AppLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AuthProvider>
-        <RootLayoutNav />
-        <AuthModalContent />
+        <CartProvider>
+          <RootLayoutNav />
+          <AuthModalContent />
+        </CartProvider>
       </AuthProvider>
     </GestureHandlerRootView>
   );

@@ -1,5 +1,6 @@
 import express from 'express';
-import { Sequelize } from 'sequelize';
+import session from 'express-session';
+import SequelizeStore from 'connect-session-sequelize';
 import User from './user.model';
 import Ad from './ad.model';
 import Category from './category.model';
@@ -9,6 +10,7 @@ import { Supply, SupplyItem } from './supply.model';
 import { asyncHandler } from './asyncHandler';
 import { authMiddleware } from './authMiddleware';
 import type { Request, Response } from 'express';
+import sequelizeInstance from './sequelize';
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
@@ -16,8 +18,38 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkey';
 
-// Настройка подключения к PostgreSQL через Sequelize
-const sequelize = new Sequelize('postgres://postgres:925248914@localhost:5432/mobile_app');
+// Initialize sequelize store
+const SessionStore = SequelizeStore(session.Store);
+const sessionStore = new SessionStore({
+  db: sequelizeInstance,
+});
+
+// Setup session middleware with sequelize store
+app.use(session({
+  secret: 'your-session-secret',
+  store: sessionStore,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+  }
+}));
+
+// Create the sessions table if it doesn't exist
+sessionStore.sync();
+
+// Extend express-session types
+declare module 'express-session' {
+  interface SessionData {
+    cart: {
+      [key: string]: Array<{
+        productId: number;
+        quantity: number;
+      }>;
+    };
+  }
+}
 
 app.use(express.json());
 
@@ -26,7 +58,7 @@ app.get('/', (req, res) => {
 });
 
 // Проверка подключения к БД
-sequelize.authenticate()
+sequelizeInstance.authenticate()
   .then(() => console.log('Database connected'))
   .catch((err: any) => console.error('Database connection error:', err));
 
@@ -43,7 +75,7 @@ const ensureNewSuppliesCategory = async () => {
 };
 
 // Call this after DB connection is established
-sequelize.authenticate()
+sequelizeInstance.authenticate()
   .then(() => {
     console.log('Database connected');
     ensureNewSuppliesCategory();
@@ -201,12 +233,22 @@ app.delete('/categories/:id', asyncHandler(async (req: Request, res: Response) =
 
 // --- PRODUCTS CRUD ---
 app.get('/products', asyncHandler(async (req: Request, res: Response) => {
-  const products = await Product.findAll();
+  const products = await Product.findAll({
+    include: [{
+      model: Category,
+      as: 'category'
+    }]
+  });
   res.json(products);
 }));
 
 app.get('/products/:id', asyncHandler(async (req: Request, res: Response) => {
-  const product = await Product.findByPk(req.params.id);
+  const product = await Product.findByPk(req.params.id, {
+    include: [{
+      model: Category,
+      as: 'category'
+    }]
+  });
   if (!product) return res.status(404).json({ error: 'Not found' });
   res.json(product);
 }));
@@ -345,6 +387,174 @@ app.get('/api/contacts', asyncHandler(async (req: Request, res: Response) => {
     return res.status(404).json({ message: 'Contacts not found' });
   }
   res.json(contacts);
+}));
+
+// Cart Endpoints
+app.get('/cart', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
+  // @ts-ignore
+  const userId = req.user.id;
+  
+  try {
+    // Get cart from user's session
+    const cartItems = req.session?.cart?.[userId] || [];
+    
+    // Fetch full product details for each item
+    const itemsWithDetails = await Promise.all(
+      cartItems.map(async (item) => {
+        const product = await Product.findByPk(item.productId, {
+          include: [{
+            model: Category,
+            as: 'category'
+          }]
+        });
+        if (!product) return null;
+
+        return {
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          quantity: item.quantity,
+          stock: product.stock,
+          isByWeight: product.category?.name === 'На развес'
+        };
+      })
+    );
+
+    // Filter out null items (products that no longer exist)
+    const validItems = itemsWithDetails.filter((item): item is NonNullable<typeof item> => item !== null);
+    
+    res.json(validItems);
+  } catch (error) {
+    console.error('Error getting cart:', error);
+    res.status(500).json({ error: 'Failed to get cart' });
+  }
+}));
+
+app.post('/cart/add', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
+  const { productId, quantity } = req.body;
+  // @ts-ignore
+  const userId = req.user.id;
+
+  if (!productId || quantity <= 0) {
+    return res.status(400).json({ error: 'Invalid product or quantity' });
+  }
+
+  try {
+    // Initialize session cart if it doesn't exist
+    if (!req.session.cart) {
+      req.session.cart = {};
+    }
+    if (!req.session.cart[userId]) {
+      req.session.cart[userId] = [];
+    }
+
+    // Check if product exists and has enough stock
+    const product = await Product.findByPk(productId);
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    if (product.stock < quantity) {
+      return res.status(400).json({ error: 'Not enough stock' });
+    }
+
+    // Add to cart
+    const existingItemIndex = req.session.cart[userId].findIndex(
+      (item) => item.productId === productId
+    );
+
+    if (existingItemIndex >= 0) {
+      req.session.cart[userId][existingItemIndex].quantity += quantity;
+    } else {
+      req.session.cart[userId].push({ productId, quantity });
+    }
+
+    res.status(200).json(req.session.cart[userId]);
+  } catch (error) {
+    console.error('Error adding to cart:', error);
+    res.status(500).json({ error: 'Failed to add to cart' });
+  }
+}));
+
+app.put('/cart/update', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
+  const { productId, quantity } = req.body;
+  // @ts-ignore
+  const userId = req.user.id;
+
+  if (!productId || quantity < 0) {
+    return res.status(400).json({ error: 'Invalid product or quantity' });
+  }
+
+  try {
+    // Check if product exists and has enough stock
+    const product = await Product.findByPk(productId);
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    if (product.stock < quantity) {
+      return res.status(400).json({ error: 'Not enough stock' });
+    }
+
+    if (!req.session.cart?.[userId]) {
+      return res.status(404).json({ error: 'Cart not found' });
+    }
+
+    const itemIndex = req.session.cart[userId].findIndex(
+      (item) => item.productId === productId
+    );
+
+    if (itemIndex === -1) {
+      return res.status(404).json({ error: 'Item not found in cart' });
+    }
+
+    if (quantity === 0) {
+      // Remove item if quantity is 0
+      req.session.cart[userId].splice(itemIndex, 1);
+    } else {
+      // Update quantity
+      req.session.cart[userId][itemIndex].quantity = quantity;
+    }
+
+    res.json(req.session.cart[userId]);
+  } catch (error) {
+    console.error('Error updating cart:', error);
+    res.status(500).json({ error: 'Failed to update cart' });
+  }
+}));
+
+app.delete('/cart/remove/:productId', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
+  const { productId } = req.params;
+  // @ts-ignore
+  const userId = req.user.id;
+
+  try {
+    if (!req.session.cart?.[userId]) {
+      return res.status(404).json({ error: 'Cart not found' });
+    }
+
+    req.session.cart[userId] = req.session.cart[userId].filter(
+      (item) => item.productId !== parseInt(productId)
+    );
+
+    res.json(req.session.cart[userId]);
+  } catch (error) {
+    console.error('Error removing from cart:', error);
+    res.status(500).json({ error: 'Failed to remove from cart' });
+  }
+}));
+
+app.delete('/cart/clear', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
+  // @ts-ignore
+  const userId = req.user.id;
+
+  try {
+    if (req.session.cart) {
+      req.session.cart[userId] = [];
+    }
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error clearing cart:', error);
+    res.status(500).json({ error: 'Failed to clear cart' });
+  }
 }));
 
 app.listen(PORT, () => {

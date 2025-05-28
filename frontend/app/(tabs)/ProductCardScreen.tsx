@@ -1,13 +1,35 @@
-import React, { useEffect } from 'react';
-import { View, Text, Image, Button, ScrollView, StyleSheet } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, Image, Button, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { HeaderBackButton } from '@react-navigation/elements';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { CompositeNavigationProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useCart } from '../CartContext';
 
-export default function ProductCardScreen() {
-  const route = useRoute();
-  const navigation = useNavigation();
-  // @ts-ignore
+type RootStackParamList = {
+  CategoryProductsScreen: { category: string } | undefined;
+  ProductCardScreen: { product: any } | undefined;
+};
+
+type RootTabParamList = {
+  Catalog: undefined;
+  Consult: undefined;
+  Cart: undefined;
+  Profile: undefined;
+  Ads: undefined;
+};
+
+type ProductCardScreenNavigationProp = CompositeNavigationProp<
+  NativeStackNavigationProp<RootStackParamList>,
+  BottomTabNavigationProp<RootTabParamList>
+>;
+
+export default function ProductCardScreen({ route }: any) {
+  const navigation = useNavigation<ProductCardScreenNavigationProp>();
   const { product } = route.params || {};
+  const { addToCart } = useCart();
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
 
   // Set up header back button without label
   useEffect(() => {
@@ -20,6 +42,16 @@ export default function ProductCardScreen() {
       ),
     });
   }, [navigation]);
+
+  const handleBuyPress = async () => {
+    try {
+      setIsAddingToCart(true);
+      await addToCart(product, 1);
+      navigation.navigate('Cart');
+    } finally {
+      setIsAddingToCart(false);
+    }
+  };
 
   if (!product) {
     return (
@@ -40,7 +72,9 @@ export default function ProductCardScreen() {
         />
 
         {/* Основная информация */}
-        <View style={styles.mainInfo}>          <Text style={styles.price}>{product.price.toLocaleString()} ₽</Text>          <Text style={styles.stockInfo} numberOfLines={1}>
+        <View style={styles.mainInfo}>
+          <Text style={styles.price}>{product.price.toLocaleString()} ₽</Text>
+          <Text style={styles.stockInfo} numberOfLines={1}>
             {product.stock > 0 
               ? <Text style={{ color: '#388e3c' }}>
                   ● В наличии: {product.stock} {product.category?.name === 'На развес' ? 'кг' : 'шт.'}
@@ -66,14 +100,29 @@ export default function ProductCardScreen() {
           </View>
         )}
 
-        {/* Кнопка купить */}
+        {/* Кнопки действий */}
         <View style={styles.buttonContainer}>
-          <Button 
-            title="Купить" 
-            color="#4caf50"
-            disabled={product.stock <= 0}
-            onPress={() => {}}
-          />
+          <View style={styles.buttonRow}>
+            <View style={styles.buttonWrapper}>
+              {isAddingToCart ? (
+                <ActivityIndicator size="small" color="#4caf50" />
+              ) : (
+                <Button 
+                  title="Купить" 
+                  color="#4caf50"
+                  disabled={product.stock <= 0}
+                  onPress={handleBuyPress}
+                />
+              )}
+            </View>
+            <View style={styles.buttonWrapper}>
+              <Button 
+                title="Консультация" 
+                color="#2196F3"
+                onPress={() => navigation.navigate('Consult')}
+              />
+            </View>
+          </View>
         </View>
       </View>
     </ScrollView>
@@ -137,8 +186,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
     lineHeight: 24,
-  },
-  buttonContainer: {
+  },  buttonContainer: {
     marginTop: 8,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  buttonWrapper: {
+    flex: 1,
   },
 });
