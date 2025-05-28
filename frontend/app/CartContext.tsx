@@ -47,50 +47,88 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     refreshCart();
   }, [refreshCart]);
 
+  const optimisticUpdateItems = useCallback((updateFn: (items: CartItem[]) => CartItem[]) => {
+    setItems(prevItems => updateFn(prevItems));
+  }, []);
+
   const addToCart = async (product: any, quantity: number) => {
     try {
-      setLoading(true);
+      // Optimistically update UI
+      optimisticUpdateItems(currentItems => {
+        const existingItem = currentItems.find(item => item.id === product.id);
+        if (existingItem) {
+          return currentItems.map(item =>
+            item.id === product.id 
+              ? { ...item, quantity: item.quantity + quantity }
+              : item
+          );
+        }
+        return [...currentItems, { 
+          id: product.id, 
+          name: product.name,
+          price: product.price,
+          quantity,
+          isByWeight: product.category?.name === 'На развес',
+          stock: product.stock
+        }];
+      });
+
       await cartApi.addToCart(product.id, quantity);
-      await refreshCart();
+      // Silent refresh to sync with server
+      const cartData = await cartApi.getCart();
+      setItems(cartData);
       Alert.alert('Успешно', 'Товар добавлен в корзину');
     } catch (err) {
       setError('Не удалось добавить товар в корзину');
       Alert.alert('Ошибка', 'Не удалось добавить товар в корзину');
       console.error('Error adding to cart:', err);
-    } finally {
-      setLoading(false);
+      await refreshCart(); // Refresh on error to ensure consistency
     }
   };
 
   const removeFromCart = async (productId: number) => {
     try {
-      setLoading(true);
+      // Optimistically update UI
+      optimisticUpdateItems(currentItems => 
+        currentItems.filter(item => item.id !== productId)
+      );
+
       await cartApi.removeFromCart(productId);
-      await refreshCart();
+      // Silent refresh to sync with server
+      const cartData = await cartApi.getCart();
+      setItems(cartData);
     } catch (err) {
       setError('Не удалось удалить товар из корзины');
       console.error('Error removing from cart:', err);
-    } finally {
-      setLoading(false);
+      await refreshCart(); // Refresh on error to ensure consistency
     }
   };
 
   const updateQuantity = async (productId: number, quantity: number) => {
     try {
-      setLoading(true);
+      // Optimistically update UI
+      optimisticUpdateItems(currentItems =>
+        currentItems.map(item =>
+          item.id === productId
+            ? { ...item, quantity }
+            : item
+        )
+      );
+
       await cartApi.updateCartItem(productId, quantity);
-      await refreshCart();
+      // Silent refresh to sync with server
+      const cartData = await cartApi.getCart();
+      setItems(cartData);
     } catch (err) {
       setError('Не удалось обновить количество товара');
       console.error('Error updating quantity:', err);
-    } finally {
-      setLoading(false);
+      await refreshCart(); // Refresh on error to ensure consistency
     }
   };
 
-  const getTotalSum = () => {
+  const getTotalSum = useCallback(() => {
     return items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  };
+  }, [items]);
 
   const clearCart = async () => {
     try {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator, RefreshControl, Alert, Modal, TextInput } from 'react-native';
 import { useCart } from '../CartContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,350 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../api';
 import { useAuthModal } from '../AuthContext';
 
-export default function CartScreen() {
-  const { items, loading, error, addToCart, removeFromCart, updateQuantity, getTotalSum, refreshCart } = useCart();
-  const [showOrderModal, setShowOrderModal] = useState(false);
-  const [orderForm, setOrderForm] = useState({
-    name: '',
-    email: '',
-    address: '',
-    deliveryMethod: 'Самовывоз',
-    paymentMethod: 'картой',
-    comment: ''
-  });
-  const [user, setUser] = useState(null);
-  const { setShowAuthModal } = useAuthModal();
-
-  // Load user data when modal opens
-  useEffect(() => {
-    if (showOrderModal) {
-      loadUserData();
-    }
-  }, [showOrderModal]);
-
-  const loadUserData = async () => {
-    try {
-      const res = await api.get('/users');
-      const token = await AsyncStorage.getItem('token');
-      if (token) {
-        const tokenPayload = JSON.parse(atob(token.split('.')[1]));
-        const currentUser = res.data.find((u: any) => u.email === tokenPayload.email);
-        if (currentUser) {
-          setUser(currentUser);
-          setOrderForm(prev => ({
-            ...prev,
-            name: currentUser.name || '',
-            email: currentUser.email || '',
-            address: currentUser.address || ''
-          }));
-        }
-      }
-    } catch (e) {
-      console.error('Error loading user data:', e);
-    }
-  };
-  const handleSubmitOrder = async () => {
-    // Check authentication
-    const token = await AsyncStorage.getItem('token');
-    if (!token) {
-      Alert.alert(
-        'Требуется авторизация',
-        'Для оформления заказа необходимо войти в аккаунт',
-        [
-          { text: 'Отмена', style: 'cancel' },
-          { text: 'Войти', onPress: () => {
-            setShowOrderModal(false);
-            setShowAuthModal(true);
-          }}
-        ]
-      );
-      return;
-    }
-
-    // Validate form
-    if (!orderForm.name.trim() || !orderForm.email.trim()) {
-      Alert.alert('Ошибка', 'Пожалуйста, заполните имя и email');
-      return;
-    }
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(orderForm.email.trim())) {
-      Alert.alert('Ошибка', 'Пожалуйста, укажите корректный email');
-      return;
-    }
-
-    if (orderForm.deliveryMethod === 'Доставка' && !orderForm.address.trim()) {
-      Alert.alert('Ошибка', 'Пожалуйста, укажите адрес доставки');
-      return;
-    }
-
-    try {
-      // Get current user's ID from token
-      const tokenData = JSON.parse(atob(token.split('.')[1]));
-      const userId = tokenData.id;
-
-      // Prepare order data
-      const orderData = {
-        userId,
-        ...orderForm,
-        items: items.map(item => ({
-          productId: item.id,
-          quantity: item.quantity,
-          price: item.price
-        })),
-        total: getTotalSum()
-      };
-
-      // Submit order to backend
-      await api.post('/orders', orderData);
-
-      // Show success message and clear cart
-      Alert.alert(
-        'Заказ отправлен',
-        'Спасибо за заказ! Мы свяжемся с вами для подтверждения.',
-        [{ 
-          text: 'OK', 
-          onPress: () => {
-            setShowOrderModal(false);
-            // Clear cart after successful order
-            refreshCart();
-          }
-        }]
-      );
-    } catch (e) {
-      console.error('Error submitting order:', e);
-      Alert.alert(
-        'Ошибка',
-        'Не удалось отправить заказ. Попробуйте позже.',
-        [{ text: 'OK' }]
-      );
-    }
-  };
-
-  if (loading) {
-    return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#2196F3" />
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity onPress={refreshCart} style={styles.retryButton}>
-          <Text style={styles.retryButtonText}>Повторить</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  if (items.length === 0) {
-    return (
-      <View style={styles.emptyContainer}>
-        <Ionicons name="cart-outline" size={64} color="#ccc" />
-        <Text style={styles.emptyText}>Корзина пуста</Text>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.container}>
-      <ScrollView 
-        style={styles.scrollView}
-        refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={refreshCart} />
-        }
-      >
-        {items.map(item => (
-          <View key={item.id} style={styles.cartItem}>
-            <View style={styles.itemInfo}>
-              <Text style={styles.itemName}>{item.name}</Text>
-              <Text style={styles.itemPrice}>{item.price.toLocaleString()} ₽{item.isByWeight ? '/кг' : ''}</Text>
-            </View>
-            
-            <View style={styles.quantityContainer}>
-              <TouchableOpacity
-                onPress={() => updateQuantity(item.id, item.quantity - 1)}
-                style={[styles.quantityButton, item.quantity <= 1 && styles.disabledButton]}
-                disabled={item.quantity <= 1}
-              >
-                <Text style={styles.quantityButtonText}>-</Text>
-              </TouchableOpacity>
-              
-              <Text style={styles.quantity}>
-                {item.quantity} {item.isByWeight ? 'кг' : 'шт'}
-              </Text>
-              
-              <TouchableOpacity
-                onPress={() => updateQuantity(item.id, item.quantity + 1)}
-                style={[styles.quantityButton, item.quantity >= item.stock && styles.disabledButton]}
-                disabled={item.quantity >= item.stock}
-              >
-                <Text style={styles.quantityButtonText}>+</Text>
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity
-              onPress={() => removeFromCart(item.id)}
-              style={styles.removeButton}
-            >
-              <Text style={styles.removeButtonText}>×</Text>
-            </TouchableOpacity>
-          </View>
-        ))}
-      </ScrollView>
-      <View style={styles.totalContainer}>
-        <View style={styles.totalRow}>
-          <Text style={styles.totalText}>Итого: {getTotalSum().toLocaleString()} ₽</Text>
-          <TouchableOpacity 
-            style={[styles.checkoutButton, items.length === 0 && styles.checkoutButtonDisabled]}
-            onPress={() => setShowOrderModal(true)}
-            disabled={items.length === 0}
-          >
-            <Text style={styles.checkoutButtonText}>Оформить</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Order Modal */}
-      <Modal
-        visible={showOrderModal}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setShowOrderModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Оформление заказа</Text>
-              <TouchableOpacity 
-                onPress={() => setShowOrderModal(false)}
-                style={styles.closeButton}
-              >
-                <Text style={styles.closeButtonText}>×</Text>
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.modalScroll}>
-              {/* Name */}
-              <Text style={styles.inputLabel}>Имя</Text>
-              <TextInput
-                style={styles.input}
-                value={orderForm.name}
-                onChangeText={(text) => setOrderForm(prev => ({ ...prev, name: text }))}
-                placeholder="Ваше имя"
-              />
-
-              {/* Email */}
-              <Text style={styles.inputLabel}>Email</Text>
-              <TextInput
-                style={styles.input}
-                value={orderForm.email}
-                onChangeText={(text) => setOrderForm(prev => ({ ...prev, email: text }))}
-                placeholder="your@email.com"
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-
-              {/* Delivery Method */}
-              <Text style={styles.inputLabel}>Способ получения</Text>
-              <View style={styles.deliveryMethodContainer}>
-                <TouchableOpacity
-                  style={[
-                    styles.deliveryMethodButton,
-                    orderForm.deliveryMethod === 'Самовывоз' && styles.deliveryMethodButtonActive
-                  ]}
-                  onPress={() => setOrderForm(prev => ({ ...prev, deliveryMethod: 'Самовывоз' }))}
-                >
-                  <Text style={[
-                    styles.deliveryMethodText,
-                    orderForm.deliveryMethod === 'Самовывоз' && styles.deliveryMethodTextActive
-                  ]}>Самовывоз</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.deliveryMethodButton,
-                    orderForm.deliveryMethod === 'Доставка' && styles.deliveryMethodButtonActive
-                  ]}
-                  onPress={() => setOrderForm(prev => ({ ...prev, deliveryMethod: 'Доставка' }))}
-                >
-                  <Text style={[
-                    styles.deliveryMethodText,
-                    orderForm.deliveryMethod === 'Доставка' && styles.deliveryMethodTextActive
-                  ]}>Доставка</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Address (show only for delivery) */}
-              {orderForm.deliveryMethod === 'Доставка' && (
-                <>
-                  <Text style={styles.inputLabel}>Адрес доставки</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={orderForm.address}
-                    onChangeText={(text) => setOrderForm(prev => ({ ...prev, address: text }))}
-                    placeholder="Укажите адрес доставки"
-                    multiline
-                  />
-                </>
-              )}
-
-              {/* Payment Method */}
-              <Text style={styles.inputLabel}>Способ оплаты</Text>
-              <View style={styles.deliveryMethodContainer}>
-                <TouchableOpacity
-                  style={[
-                    styles.deliveryMethodButton,
-                    orderForm.paymentMethod === 'картой' && styles.deliveryMethodButtonActive
-                  ]}
-                  onPress={() => setOrderForm(prev => ({ ...prev, paymentMethod: 'картой' }))}
-                >
-                  <Text style={[
-                    styles.deliveryMethodText,
-                    orderForm.paymentMethod === 'картой' && styles.deliveryMethodTextActive
-                  ]}>Картой</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.deliveryMethodButton,
-                    orderForm.paymentMethod === 'наличные' && styles.deliveryMethodButtonActive
-                  ]}
-                  onPress={() => setOrderForm(prev => ({ ...prev, paymentMethod: 'наличные' }))}
-                >
-                  <Text style={[
-                    styles.deliveryMethodText,
-                    orderForm.paymentMethod === 'наличные' && styles.deliveryMethodTextActive
-                  ]}>Наличными</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Comment */}
-              <Text style={styles.inputLabel}>Комментарий к заказу</Text>
-              <TextInput
-                style={[styles.input, styles.commentInput]}
-                value={orderForm.comment}
-                onChangeText={(text) => setOrderForm(prev => ({ ...prev, comment: text }))}
-                placeholder="Дополнительная информация к заказу"
-                multiline
-              />
-
-              <TouchableOpacity
-                style={[styles.submitButton]}
-                onPress={handleSubmitOrder}
-              >
-                <Text style={styles.submitButtonText}>Заказать</Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-    </View>
-  );
-}
-
+// Styles definition moved to top for reference
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -485,25 +142,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-
-  // Modal Styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
   },
   modalContent: {
     backgroundColor: '#fff',
-    borderRadius: 16,
-    width: '92%',
-    maxWidth: 400,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     maxHeight: '90%',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -514,7 +162,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#eee',
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
   },
   closeButton: {
@@ -592,5 +240,404 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     textAlign: 'center',
-  },
+  }
 });
+
+// Memoized CartItem component with proper prop types
+interface CartItemProps {
+  item: {
+    id: number;
+    name: string;
+    price: number;
+    quantity: number;
+    isByWeight: boolean;
+    stock: number;
+  };
+  onUpdateQuantity: (id: number, quantity: number) => Promise<void>;
+  onRemove: (id: number) => Promise<void>;
+}
+
+const CartItem = React.memo<CartItemProps>(({ 
+  item, 
+  onUpdateQuantity, 
+  onRemove 
+}) => {
+  // Memoize callbacks for this specific item
+  const handleIncrease = useCallback(() => {
+    onUpdateQuantity(item.id, item.quantity + 1);
+  }, [item.id, item.quantity, onUpdateQuantity]);
+
+  const handleDecrease = useCallback(() => {
+    onUpdateQuantity(item.id, item.quantity - 1);
+  }, [item.id, item.quantity, onUpdateQuantity]);
+
+  const handleRemove = useCallback(() => {
+    onRemove(item.id);
+  }, [item.id, onRemove]);
+
+  return (
+    <View style={styles.cartItem}>
+      <View style={styles.itemInfo}>
+        <Text style={styles.itemName}>{item.name}</Text>
+        <Text style={styles.itemPrice}>{item.price.toLocaleString()} ₽{item.isByWeight ? '/кг' : ''}</Text>
+      </View>
+      
+      <View style={styles.quantityContainer}>
+        <TouchableOpacity
+          onPress={handleDecrease}
+          style={[styles.quantityButton, item.quantity <= 1 && styles.disabledButton]}
+          disabled={item.quantity <= 1}
+        >
+          <Text style={styles.quantityButtonText}>-</Text>
+        </TouchableOpacity>
+        
+        <Text style={styles.quantity}>
+          {item.quantity} {item.isByWeight ? 'кг' : 'шт'}
+        </Text>
+        
+        <TouchableOpacity
+          onPress={handleIncrease}
+          style={[styles.quantityButton, item.quantity >= item.stock && styles.disabledButton]}
+          disabled={item.quantity >= item.stock}
+        >
+          <Text style={styles.quantityButtonText}>+</Text>
+        </TouchableOpacity>
+      </View>
+
+      <TouchableOpacity
+        onPress={handleRemove}
+        style={styles.removeButton}
+      >
+        <Text style={styles.removeButtonText}>×</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}, (prevProps, nextProps) => {
+  // Custom comparison function for memo
+  return (
+    prevProps.item.id === nextProps.item.id &&
+    prevProps.item.quantity === nextProps.item.quantity &&
+    prevProps.item.price === nextProps.item.price &&
+    prevProps.item.stock === nextProps.item.stock
+  );
+});
+
+export default function CartScreen() {
+  const { items, loading, error, updateQuantity, removeFromCart, getTotalSum, refreshCart } = useCart();
+  const [showOrderModal, setShowOrderModal] = useState(false);
+  const [orderForm, setOrderForm] = useState({
+    name: '',
+    email: '',
+    address: '',
+    deliveryMethod: 'Самовывоз',
+    paymentMethod: 'картой',
+    comment: ''
+  });
+  const [user, setUser] = useState(null);
+  const { setShowAuthModal } = useAuthModal();
+
+  // Memoize handler functions to prevent unnecessary re-renders
+  const handleUpdateQuantity = useCallback(async (productId: number, newQuantity: number) => {
+    await updateQuantity(productId, newQuantity);
+  }, [updateQuantity]);
+
+  const handleRemoveFromCart = useCallback(async (productId: number) => {
+    await removeFromCart(productId);
+  }, [removeFromCart]);
+
+  // Memoize the cart items to prevent unnecessary re-renders
+  const cartItems = useMemo(() => {
+    return items.map(item => (
+      <CartItem
+        key={item.id}
+        item={item}
+        onUpdateQuantity={handleUpdateQuantity}
+        onRemove={handleRemoveFromCart}
+      />
+    ));
+  }, [items, handleUpdateQuantity, handleRemoveFromCart]);
+
+  // Load user data when modal opens
+  useEffect(() => {
+    if (showOrderModal) {
+      loadUserData();
+    }
+  }, [showOrderModal]);
+
+  const loadUserData = async () => {
+    try {
+      const res = await api.get('/users');
+      const token = await AsyncStorage.getItem('token');
+      if (token) {
+        const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+        const currentUser = res.data.find((u: any) => u.email === tokenPayload.email);
+        if (currentUser) {
+          setUser(currentUser);
+          setOrderForm(prev => ({
+            ...prev,
+            name: currentUser.name || '',
+            email: currentUser.email || '',
+            address: currentUser.address || ''
+          }));
+        }
+      }
+    } catch (e) {
+      console.error('Error loading user data:', e);
+    }
+  };
+
+  const handleSubmitOrder = async () => {
+    // Check authentication
+    const token = await AsyncStorage.getItem('token');
+    if (!token) {
+      Alert.alert(
+        'Требуется авторизация',
+        'Для оформления заказа необходимо войти в аккаунт',
+        [
+          { text: 'Отмена', style: 'cancel' },
+          { text: 'Войти', onPress: () => {
+            setShowOrderModal(false);
+            setShowAuthModal(true);
+          }}
+        ]
+      );
+      return;
+    }
+
+    // Validate form
+    if (!orderForm.name.trim() || !orderForm.email.trim()) {
+      Alert.alert('Ошибка', 'Пожалуйста, заполните имя и email');
+      return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(orderForm.email.trim())) {
+      Alert.alert('Ошибка', 'Пожалуйста, укажите корректный email');
+      return;
+    }
+
+    if (orderForm.deliveryMethod === 'Доставка' && !orderForm.address.trim()) {
+      Alert.alert('Ошибка', 'Пожалуйста, укажите адрес доставки');
+      return;
+    }
+
+    try {
+      const tokenData = JSON.parse(atob(token.split('.')[1]));
+      const userId = tokenData.id;
+
+      const orderData = {
+        userId,
+        ...orderForm,
+        items: items.map(item => ({
+          productId: item.id,
+          quantity: item.quantity,
+          price: item.price
+        })),
+        total: getTotalSum()
+      };
+
+      await api.post('/orders', orderData);
+      Alert.alert(
+        'Заказ отправлен',
+        'Спасибо за заказ! Мы свяжемся с вами для подтверждения.',
+        [{ 
+          text: 'OK', 
+          onPress: () => {
+            setShowOrderModal(false);
+            refreshCart();
+          }
+        }]
+      );
+    } catch (e) {
+      console.error('Error submitting order:', e);
+      Alert.alert(
+        'Ошибка',
+        'Не удалось отправить заказ. Попробуйте позже.',
+        [{ text: 'OK' }]
+      );
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color="#2196F3" />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.centerContainer}>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity onPress={refreshCart} style={styles.retryButton}>
+          <Text style={styles.retryButtonText}>Повторить</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (items.length === 0) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Ionicons name="cart-outline" size={64} color="#ccc" />
+        <Text style={styles.emptyText}>Корзина пуста</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <ScrollView 
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl refreshing={loading} onRefresh={refreshCart} />
+        }
+      >
+        {cartItems}
+      </ScrollView>
+
+      <View style={styles.totalContainer}>
+        <View style={styles.totalRow}>
+          <Text style={styles.totalText}>
+            Итого: {getTotalSum().toLocaleString()} ₽
+          </Text>
+          <TouchableOpacity 
+            style={[styles.checkoutButton, items.length === 0 && styles.checkoutButtonDisabled]}
+            onPress={() => setShowOrderModal(true)}
+            disabled={items.length === 0}
+          >
+            <Text style={styles.checkoutButtonText}>Оформить</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <Modal
+        visible={showOrderModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowOrderModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Оформление заказа</Text>
+              <TouchableOpacity 
+                onPress={() => setShowOrderModal(false)}
+                style={styles.closeButton}
+              >
+                <Text style={styles.closeButtonText}>×</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalScroll}>
+              <Text style={styles.inputLabel}>Имя</Text>
+              <TextInput
+                style={styles.input}
+                value={orderForm.name}
+                onChangeText={(text) => setOrderForm(prev => ({ ...prev, name: text }))}
+                placeholder="Ваше имя"
+              />
+
+              <Text style={styles.inputLabel}>Email</Text>
+              <TextInput
+                style={styles.input}
+                value={orderForm.email}
+                onChangeText={(text) => setOrderForm(prev => ({ ...prev, email: text }))}
+                placeholder="your@email.com"
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+
+              <Text style={styles.inputLabel}>Способ получения</Text>
+              <View style={styles.deliveryMethodContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.deliveryMethodButton,
+                    orderForm.deliveryMethod === 'Самовывоз' && styles.deliveryMethodButtonActive
+                  ]}
+                  onPress={() => setOrderForm(prev => ({ ...prev, deliveryMethod: 'Самовывоз' }))}
+                >
+                  <Text style={[
+                    styles.deliveryMethodText,
+                    orderForm.deliveryMethod === 'Самовывоз' && styles.deliveryMethodTextActive
+                  ]}>Самовывоз</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.deliveryMethodButton,
+                    orderForm.deliveryMethod === 'Доставка' && styles.deliveryMethodButtonActive
+                  ]}
+                  onPress={() => setOrderForm(prev => ({ ...prev, deliveryMethod: 'Доставка' }))}
+                >
+                  <Text style={[
+                    styles.deliveryMethodText,
+                    orderForm.deliveryMethod === 'Доставка' && styles.deliveryMethodTextActive
+                  ]}>Доставка</Text>
+                </TouchableOpacity>
+              </View>
+
+              {orderForm.deliveryMethod === 'Доставка' && (
+                <>
+                  <Text style={styles.inputLabel}>Адрес доставки</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={orderForm.address}
+                    onChangeText={(text) => setOrderForm(prev => ({ ...prev, address: text }))}
+                    placeholder="Укажите адрес доставки"
+                    multiline
+                  />
+                </>
+              )}
+
+              <Text style={styles.inputLabel}>Способ оплаты</Text>
+              <View style={styles.deliveryMethodContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.deliveryMethodButton,
+                    orderForm.paymentMethod === 'картой' && styles.deliveryMethodButtonActive
+                  ]}
+                  onPress={() => setOrderForm(prev => ({ ...prev, paymentMethod: 'картой' }))}
+                >
+                  <Text style={[
+                    styles.deliveryMethodText,
+                    orderForm.paymentMethod === 'картой' && styles.deliveryMethodTextActive
+                  ]}>Картой</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.deliveryMethodButton,
+                    orderForm.paymentMethod === 'наличные' && styles.deliveryMethodButtonActive
+                  ]}
+                  onPress={() => setOrderForm(prev => ({ ...prev, paymentMethod: 'наличные' }))}
+                >
+                  <Text style={[
+                    styles.deliveryMethodText,
+                    orderForm.paymentMethod === 'наличные' && styles.deliveryMethodTextActive
+                  ]}>Наличными</Text>
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.inputLabel}>Комментарий к заказу</Text>
+              <TextInput
+                style={[styles.input, styles.commentInput]}
+                value={orderForm.comment}
+                onChangeText={(text) => setOrderForm(prev => ({ ...prev, comment: text }))}
+                placeholder="Дополнительная информация к заказу"
+                multiline
+              />
+
+              <TouchableOpacity
+                style={[styles.submitButton]}
+                onPress={handleSubmitOrder}
+              >
+                <Text style={styles.submitButtonText}>Заказать</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+}
