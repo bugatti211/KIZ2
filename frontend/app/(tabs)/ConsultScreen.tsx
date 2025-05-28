@@ -205,26 +205,38 @@ export default function ConsultScreen() {
     </View>
   );
 
+  const renderTabs = () => (
+    <View style={styles.tabContainer}>
+      <TouchableOpacity
+        style={[
+          styles.tab,
+          activeTab === 'employee' && styles.activeTab
+        ]}
+        onPress={() => setActiveTab('employee')}
+      >
+        <Text style={[
+          styles.tabText,
+          activeTab === 'employee' && styles.activeTabText
+        ]}>Сотрудник</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[
+          styles.tab,
+          activeTab === 'ai' && styles.activeTab
+        ]}
+        onPress={() => setActiveTab('ai')}
+      >
+        <Text style={[
+          styles.tabText,
+          activeTab === 'ai' && styles.activeTabText
+        ]}>AI помощник</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
   return (
     <View style={styles.container}>
-      <View style={styles.tabBar}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'employee' && styles.activeTab]}
-          onPress={() => setActiveTab('employee')}
-        >
-          <Text style={[styles.tabText, activeTab === 'employee' && styles.activeTabText]}>
-            Сотрудник
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'ai' && styles.activeTab]}
-          onPress={() => setActiveTab('ai')}
-        >
-          <Text style={[styles.tabText, activeTab === 'ai' && styles.activeTabText]}>
-            AI помощник
-          </Text>
-        </TouchableOpacity>
-      </View>
+      {renderTabs()}
       {renderContent()}
     </View>
   );
@@ -235,32 +247,36 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
-  tabBar: {
+  tabContainer: {
     flexDirection: 'row',
+    padding: 16,
+    backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },
   tab: {
     flex: 1,
-    paddingVertical: 15,
+    paddingVertical: 12,
     alignItems: 'center',
+    borderRadius: 8,
+    marginHorizontal: 4,
+    backgroundColor: '#f5f5f5',
   },
   activeTab: {
-    borderBottomWidth: 2,
-    borderBottomColor: '#0066cc',
+    backgroundColor: '#2196F3',
   },
   tabText: {
     fontSize: 16,
     color: '#666',
   },
   activeTabText: {
-    color: '#0066cc',
-    fontWeight: '600',
+    color: '#fff',
   },
   contentContainer: {
     flex: 1,
-    padding: 20,
     alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
   },
   contentText: {
     fontSize: 18,
@@ -268,107 +284,66 @@ const styles = StyleSheet.create({
   },
   contactButtons: {
     width: '100%',
-    gap: 15,
+    gap: 16,
   },
   contactButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 15,
-    borderRadius: 10,
+    borderRadius: 8,
     gap: 10,
   },
   buttonText: {
     color: 'white',
     fontSize: 16,
-    fontWeight: '600',
+    marginLeft: 8,
   },
   chatContainer: {
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
-  messagesContainer: {
-    flex: 1,
-    padding: 15,
-  },
-  messageContainer: {
-    maxWidth: '80%',
-    marginVertical: 5,
-    padding: 12,
-    borderRadius: 15,
-  },
-  userMessage: {
-    alignSelf: 'flex-end',
-    backgroundColor: '#0066cc',
-  },
-  assistantMessage: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'white',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  messageText: {
-    fontSize: 16,
-    color: '#333',
-  },
-  typingIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 10,
-    gap: 10,
-  },
-  typingText: {
-    color: '#666',
-    fontSize: 14,
-  },  inputContainer: {
-    flexDirection: 'row',
-    padding: 10,
-    backgroundColor: 'white',
-    borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
-    gap: 8,
-  },
-  input: {
-    flex: 1,
-    minHeight: 40,
-    maxHeight: 100,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 20,
-    paddingHorizontal: 15,
-    paddingRight: 45,
-    paddingVertical: 10,
-    fontSize: 16,
-  },
-  sendButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#0066cc',
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'absolute',
-    right: 14,
-    bottom: 14,
-  },
-  sendButtonDisabled: {
-    backgroundColor: '#e0e0e0',
-  },
   chatHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 15,
+    padding: 16,
+    backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
-    backgroundColor: 'white',
   },
   chatTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: '500',
   },
   clearButton: {
     padding: 8,
+  },
+  clearButtonText: {
+    color: '#ff3b30',
+    fontSize: 14,
+  },
+  messagesContainer: {
+    flex: 1,
+    padding: 16,
+  },
+  messageContainer: {
+    maxWidth: '80%',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  userMessage: {
+    alignSelf: 'flex-end',
+    backgroundColor: '#007AFF',
+  },
+  assistantMessage: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#E9E9EB',
+  },
+  messageText: {
+    fontSize: 16,
+    lineHeight: 22,
   },
   messageTime: {
     fontSize: 12,
@@ -376,10 +351,48 @@ const styles = StyleSheet.create({
   },
   userMessageTime: {
     color: 'rgba(255, 255, 255, 0.7)',
-    alignSelf: 'flex-end',
+    textAlign: 'right',
   },
   assistantMessageTime: {
-    color: '#999',
-    alignSelf: 'flex-start',
+    color: '#8E8E93',
+    textAlign: 'left',
+  },
+  typingIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    marginBottom: 8,
+  },
+  typingText: {
+    marginLeft: 8,
+    color: '#8E8E93',
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    padding: 16,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
+  input: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginRight: 8,
+    fontSize: 16,
+    maxHeight: 100,
+  },
+  sendButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sendButtonDisabled: {
+    backgroundColor: '#E9E9EB',
   },
 });
