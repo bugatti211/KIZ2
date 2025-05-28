@@ -65,4 +65,33 @@ export const cartApi = {
   }
 };
 
+// Order API endpoints
+export const orderApi = {
+  // Получить заказы пользователя
+  getOrders: async () => {
+    const response = await api.get('/orders');
+    return response.data;
+  },
+
+  // Создать новый заказ
+  createOrder: async (orderData: {
+    userId: number;
+    name: string;
+    email: string;
+    address?: string;
+    deliveryMethod: 'Самовывоз' | 'Доставка';
+    paymentMethod: 'картой' | 'наличные';
+    comment?: string;
+    items: Array<{
+      productId: number;
+      quantity: number;
+      price: number;
+    }>;
+    total: number;
+  }) => {
+    const response = await api.post('/orders', orderData);
+    return response.data;
+  }
+};
+
 export default api;

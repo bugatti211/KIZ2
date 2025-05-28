@@ -6,6 +6,7 @@ import Ad from './ad.model';
 import Category from './category.model';
 import Product from './product.model';
 import Contact from './contact.model';
+import { Order, OrderItem } from './order.model';
 import { Supply, SupplyItem } from './supply.model';
 import { asyncHandler } from './asyncHandler';
 import { authMiddleware } from './authMiddleware';
@@ -554,6 +555,127 @@ app.delete('/cart/clear', authMiddleware as any, asyncHandler(async (req: Reques
   } catch (error) {
     console.error('Error clearing cart:', error);
     res.status(500).json({ error: 'Failed to clear cart' });
+  }
+}));
+
+// Order endpoints
+app.post('/orders', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
+  const orderData = req.body;
+  
+  try {
+    // Start transaction
+    const result = await sequelizeInstance.transaction(async (t) => {
+      // Create order
+      const order = await Order.create({
+        userId: orderData.userId,
+        name: orderData.name,
+        email: orderData.email,
+        address: orderData.address,
+        deliveryMethod: orderData.deliveryMethod,
+        paymentMethod: orderData.paymentMethod,
+        comment: orderData.comment,
+        total: orderData.total
+      }, { transaction: t });
+
+      // Create order items
+      const orderItems = await Promise.all(
+        orderData.items.map(async (item: { productId: number; quantity: number; price: number }) => {
+          const product = await Product.findByPk(item.productId);
+          if (!product) {
+            throw new Error(`Product ${item.productId} not found`);
+          }
+
+          // Update product stock
+          const newStock = product.stock - item.quantity;
+          if (newStock < 0) {
+            throw new Error(`Not enough stock for product ${product.name}`);
+          }
+          
+          await product.update({ stock: newStock }, { transaction: t });
+
+          return OrderItem.create({
+            orderId: order.id,
+            productId: item.productId,
+            quantity: item.quantity,
+            price: item.price
+          }, { transaction: t });
+        })
+      );
+
+      // Clear user's cart after successful order
+      if (req.session.cart) {
+        // @ts-ignore
+        req.session.cart[orderData.userId] = [];
+      }
+
+      return { order, orderItems };
+    });
+
+    res.status(201).json(result);
+  } catch (error: any) {
+    console.error('Error creating order:', error);
+    res.status(400).json({ error: error.message });
+  }
+}));
+
+app.post('/orders/:id/confirm', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  try {
+    const order = await Order.findByPk(id);
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    
+    await order.update({ status: 'confirmed' });
+    res.json(order);
+  } catch (error) {
+    console.error('Error confirming order:', error);
+    res.status(500).json({ error: 'Failed to confirm order' });
+  }
+}));
+
+app.get('/orders', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
+  try {
+    // @ts-ignore
+    const userId = req.user.id;
+    
+    const orders = await Order.findAll({
+      where: { userId },
+      include: [{
+        model: OrderItem,
+        as: 'items',
+        include: [{
+          model: Product,
+          as: 'product',
+          attributes: ['name'],
+          include: [{
+            model: Category,
+            as: 'category',
+            attributes: ['name']
+          }]
+        }]
+      }],
+      order: [['createdAt', 'DESC']]
+    });
+
+    const ordersWithByWeight = orders.map((order: Order) => {
+      const plainOrder = order.get({ plain: true });
+      return {
+        ...plainOrder,
+        items: plainOrder.items.map((item: any) => ({
+          ...item,
+          product: {
+            ...item.product,
+            isByWeight: item.product.category.name === 'На развес'
+          }
+        }))
+      };
+    });
+
+    res.json(ordersWithByWeight);
+  } catch (error) {
+    console.error('Error fetching orders:', error);
+    res.status(500).json({ error: 'Failed to fetch orders' });
   }
 }));
 

@@ -13,6 +13,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AdsScreen from './AdsScreen';
 import NewSupplyScreen from './NewSupplyScreen';
 import SupplyHistoryScreen from './SupplyHistoryScreen';
+import OrdersScreen from './OrdersScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -138,6 +139,7 @@ export default function TabLayout({ setIsAuthenticated }: any) {
             case 'Consult': iconName = 'chatbubble-ellipses-outline'; break;
             case 'Cart': iconName = 'cart-outline'; break;
             case 'Profile': iconName = 'person-outline'; break;
+            case 'Orders': iconName = 'receipt-outline'; break;
           }
           return <Ionicons name={iconName as any} size={size} color={color} />;
         },
@@ -147,6 +149,7 @@ export default function TabLayout({ setIsAuthenticated }: any) {
       <Tab.Screen name="Catalog" component={CatalogStack} options={{ title: 'Каталог' }} />
       <Tab.Screen name="Consult" component={ConsultScreen} options={{ title: 'Консультация' }} />
       <Tab.Screen name="Cart" component={CartScreen} options={{ title: 'Корзина' }} />
+      <Tab.Screen name="Orders" component={OrdersScreen} options={{ title: 'Заказы' }} />
       <Tab.Screen name="Profile" component={ProfileStack} />
     </Tab.Navigator>
   );
@@ -159,6 +162,7 @@ function getTabTitle(name: string) {
     case 'Cart': return 'Корзина';
     case 'Profile': return 'Профиль';
     case 'Ads': return 'Объявления';
+    case 'Orders': return 'Заказы';
     default: return '';
   }
 }
