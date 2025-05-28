@@ -42,12 +42,11 @@ export default function ProductCardScreen({ route }: any) {
       ),
     });
   }, [navigation]);
-
   const handleBuyPress = async () => {
     try {
       setIsAddingToCart(true);
       await addToCart(product, 1);
-      navigation.navigate('Cart');
+      // Removed navigation to Cart screen
     } finally {
       setIsAddingToCart(false);
     }
