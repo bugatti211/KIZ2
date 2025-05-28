@@ -1,10 +1,131 @@
-import React from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator, RefreshControl, Alert, Modal, TextInput } from 'react-native';
 import { useCart } from '../CartContext';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import api from '../api';
+import { useAuthModal } from '../AuthContext';
 
 export default function CartScreen() {
-  const { items, loading, error, removeFromCart, updateQuantity, getTotalSum, refreshCart } = useCart();
+  const { items, loading, error, addToCart, removeFromCart, updateQuantity, getTotalSum, refreshCart } = useCart();
+  const [showOrderModal, setShowOrderModal] = useState(false);
+  const [orderForm, setOrderForm] = useState({
+    name: '',
+    email: '',
+    address: '',
+    deliveryMethod: 'Самовывоз',
+    paymentMethod: 'картой',
+    comment: ''
+  });
+  const [user, setUser] = useState(null);
+  const { setShowAuthModal } = useAuthModal();
+
+  // Load user data when modal opens
+  useEffect(() => {
+    if (showOrderModal) {
+      loadUserData();
+    }
+  }, [showOrderModal]);
+
+  const loadUserData = async () => {
+    try {
+      const res = await api.get('/users');
+      const token = await AsyncStorage.getItem('token');
+      if (token) {
+        const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+        const currentUser = res.data.find((u: any) => u.email === tokenPayload.email);
+        if (currentUser) {
+          setUser(currentUser);
+          setOrderForm(prev => ({
+            ...prev,
+            name: currentUser.name || '',
+            email: currentUser.email || '',
+            address: currentUser.address || ''
+          }));
+        }
+      }
+    } catch (e) {
+      console.error('Error loading user data:', e);
+    }
+  };
+  const handleSubmitOrder = async () => {
+    // Check authentication
+    const token = await AsyncStorage.getItem('token');
+    if (!token) {
+      Alert.alert(
+        'Требуется авторизация',
+        'Для оформления заказа необходимо войти в аккаунт',
+        [
+          { text: 'Отмена', style: 'cancel' },
+          { text: 'Войти', onPress: () => {
+            setShowOrderModal(false);
+            setShowAuthModal(true);
+          }}
+        ]
+      );
+      return;
+    }
+
+    // Validate form
+    if (!orderForm.name.trim() || !orderForm.email.trim()) {
+      Alert.alert('Ошибка', 'Пожалуйста, заполните имя и email');
+      return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(orderForm.email.trim())) {
+      Alert.alert('Ошибка', 'Пожалуйста, укажите корректный email');
+      return;
+    }
+
+    if (orderForm.deliveryMethod === 'Доставка' && !orderForm.address.trim()) {
+      Alert.alert('Ошибка', 'Пожалуйста, укажите адрес доставки');
+      return;
+    }
+
+    try {
+      // Get current user's ID from token
+      const tokenData = JSON.parse(atob(token.split('.')[1]));
+      const userId = tokenData.id;
+
+      // Prepare order data
+      const orderData = {
+        userId,
+        ...orderForm,
+        items: items.map(item => ({
+          productId: item.id,
+          quantity: item.quantity,
+          price: item.price
+        })),
+        total: getTotalSum()
+      };
+
+      // Submit order to backend
+      await api.post('/orders', orderData);
+
+      // Show success message and clear cart
+      Alert.alert(
+        'Заказ отправлен',
+        'Спасибо за заказ! Мы свяжемся с вами для подтверждения.',
+        [{ 
+          text: 'OK', 
+          onPress: () => {
+            setShowOrderModal(false);
+            // Clear cart after successful order
+            refreshCart();
+          }
+        }]
+      );
+    } catch (e) {
+      console.error('Error submitting order:', e);
+      Alert.alert(
+        'Ошибка',
+        'Не удалось отправить заказ. Попробуйте позже.',
+        [{ text: 'OK' }]
+      );
+    }
+  };
 
   if (loading) {
     return (
@@ -80,10 +201,151 @@ export default function CartScreen() {
           </View>
         ))}
       </ScrollView>
-
       <View style={styles.totalContainer}>
-        <Text style={styles.totalText}>Итого: {getTotalSum().toLocaleString()} ₽</Text>
+        <View style={styles.totalRow}>
+          <Text style={styles.totalText}>Итого: {getTotalSum().toLocaleString()} ₽</Text>
+          <TouchableOpacity 
+            style={[styles.checkoutButton, items.length === 0 && styles.checkoutButtonDisabled]}
+            onPress={() => setShowOrderModal(true)}
+            disabled={items.length === 0}
+          >
+            <Text style={styles.checkoutButtonText}>Оформить</Text>
+          </TouchableOpacity>
+        </View>
       </View>
+
+      {/* Order Modal */}
+      <Modal
+        visible={showOrderModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowOrderModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Оформление заказа</Text>
+              <TouchableOpacity 
+                onPress={() => setShowOrderModal(false)}
+                style={styles.closeButton}
+              >
+                <Text style={styles.closeButtonText}>×</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalScroll}>
+              {/* Name */}
+              <Text style={styles.inputLabel}>Имя</Text>
+              <TextInput
+                style={styles.input}
+                value={orderForm.name}
+                onChangeText={(text) => setOrderForm(prev => ({ ...prev, name: text }))}
+                placeholder="Ваше имя"
+              />
+
+              {/* Email */}
+              <Text style={styles.inputLabel}>Email</Text>
+              <TextInput
+                style={styles.input}
+                value={orderForm.email}
+                onChangeText={(text) => setOrderForm(prev => ({ ...prev, email: text }))}
+                placeholder="your@email.com"
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+
+              {/* Delivery Method */}
+              <Text style={styles.inputLabel}>Способ получения</Text>
+              <View style={styles.deliveryMethodContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.deliveryMethodButton,
+                    orderForm.deliveryMethod === 'Самовывоз' && styles.deliveryMethodButtonActive
+                  ]}
+                  onPress={() => setOrderForm(prev => ({ ...prev, deliveryMethod: 'Самовывоз' }))}
+                >
+                  <Text style={[
+                    styles.deliveryMethodText,
+                    orderForm.deliveryMethod === 'Самовывоз' && styles.deliveryMethodTextActive
+                  ]}>Самовывоз</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.deliveryMethodButton,
+                    orderForm.deliveryMethod === 'Доставка' && styles.deliveryMethodButtonActive
+                  ]}
+                  onPress={() => setOrderForm(prev => ({ ...prev, deliveryMethod: 'Доставка' }))}
+                >
+                  <Text style={[
+                    styles.deliveryMethodText,
+                    orderForm.deliveryMethod === 'Доставка' && styles.deliveryMethodTextActive
+                  ]}>Доставка</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Address (show only for delivery) */}
+              {orderForm.deliveryMethod === 'Доставка' && (
+                <>
+                  <Text style={styles.inputLabel}>Адрес доставки</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={orderForm.address}
+                    onChangeText={(text) => setOrderForm(prev => ({ ...prev, address: text }))}
+                    placeholder="Укажите адрес доставки"
+                    multiline
+                  />
+                </>
+              )}
+
+              {/* Payment Method */}
+              <Text style={styles.inputLabel}>Способ оплаты</Text>
+              <View style={styles.deliveryMethodContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.deliveryMethodButton,
+                    orderForm.paymentMethod === 'картой' && styles.deliveryMethodButtonActive
+                  ]}
+                  onPress={() => setOrderForm(prev => ({ ...prev, paymentMethod: 'картой' }))}
+                >
+                  <Text style={[
+                    styles.deliveryMethodText,
+                    orderForm.paymentMethod === 'картой' && styles.deliveryMethodTextActive
+                  ]}>Картой</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.deliveryMethodButton,
+                    orderForm.paymentMethod === 'наличные' && styles.deliveryMethodButtonActive
+                  ]}
+                  onPress={() => setOrderForm(prev => ({ ...prev, paymentMethod: 'наличные' }))}
+                >
+                  <Text style={[
+                    styles.deliveryMethodText,
+                    orderForm.paymentMethod === 'наличные' && styles.deliveryMethodTextActive
+                  ]}>Наличными</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Comment */}
+              <Text style={styles.inputLabel}>Комментарий к заказу</Text>
+              <TextInput
+                style={[styles.input, styles.commentInput]}
+                value={orderForm.comment}
+                onChangeText={(text) => setOrderForm(prev => ({ ...prev, comment: text }))}
+                placeholder="Дополнительная информация к заказу"
+                multiline
+              />
+
+              <TouchableOpacity
+                style={[styles.submitButton]}
+                onPress={handleSubmitOrder}
+              >
+                <Text style={styles.submitButtonText}>Заказать</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -100,6 +362,7 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+    padding: 16,
   },
   emptyContainer: {
     flex: 1,
@@ -129,20 +392,29 @@ const styles = StyleSheet.create({
   },
   cartItem: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    marginBottom: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
   },
   itemInfo: {
     flex: 1,
+    marginRight: 16,
   },
   itemName: {
     fontSize: 16,
+    fontWeight: '500',
     marginBottom: 4,
   },
   itemPrice: {
-    fontSize: 14,
     color: '#666',
   },
   quantityContainer: {
@@ -151,52 +423,174 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   quantityButton: {
-    width: 30,
-    height: 30,
-    backgroundColor: '#2196F3',
-    borderRadius: 15,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f0f0f0',
     justifyContent: 'center',
     alignItems: 'center',
   },
   disabledButton: {
-    backgroundColor: '#ccc',
+    opacity: 0.5,
   },
   quantityButtonText: {
-    color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
+    color: '#333',
   },
   quantity: {
-    marginHorizontal: 12,
+    paddingHorizontal: 12,
     fontSize: 16,
   },
   removeButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#ff3b30',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#ffebee',
     justifyContent: 'center',
     alignItems: 'center',
   },
   removeButtonText: {
-    color: '#fff',
-    fontSize: 20,
+    fontSize: 24,
+    color: '#e53935',
     fontWeight: 'bold',
+    lineHeight: 28,
   },
   totalContainer: {
-    padding: 16,
     borderTopWidth: 1,
     borderTopColor: '#eee',
+    padding: 16,
     backgroundColor: '#fff',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+  },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   totalText: {
     fontSize: 18,
     fontWeight: 'bold',
-    textAlign: 'right',
+  },
+  checkoutButton: {
+    backgroundColor: '#4caf50',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  checkoutButtonDisabled: {
+    backgroundColor: '#ccc',
+  },
+  checkoutButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    width: '92%',
+    maxWidth: 400,
+    maxHeight: '90%',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f5f5f5',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    fontSize: 24,
+    color: '#666',
+    fontWeight: 'bold',
+    lineHeight: 28,
+  },
+  modalScroll: {
+    padding: 16,
+  },
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginBottom: 8,
+    color: '#333',
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    marginBottom: 16,
+    backgroundColor: '#fff',
+  },
+  commentInput: {
+    height: 100,
+    textAlignVertical: 'top',
+  },
+  deliveryMethodContainer: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  deliveryMethodButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    marginRight: 8,
+    borderRadius: 8,
+    backgroundColor: '#fff',
+  },
+  deliveryMethodButtonActive: {
+    backgroundColor: '#e3f2fd',
+    borderColor: '#2196f3',
+  },
+  deliveryMethodText: {
+    textAlign: 'center',
+    fontSize: 16,
+    color: '#666',
+  },
+  deliveryMethodTextActive: {
+    color: '#2196f3',
+    fontWeight: '500',
+  },
+  submitButton: {
+    backgroundColor: '#4caf50',
+    paddingVertical: 14,
+    borderRadius: 8,
+    marginTop: 8,
+    marginBottom: 24,
+  },
+  submitButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
 });
