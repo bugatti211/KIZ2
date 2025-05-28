@@ -14,7 +14,9 @@ export type RootStackParamList = {
 export default function CatalogScreen() {
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [categoryName, setCategoryName] = useState('');
-  const [categories, setCategories] = useState<{ id: number; name: string }[]>([]); // теперь с id
+  const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
+  const [filteredCategories, setFilteredCategories] = useState<{ id: number; name: string }[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [saving, setSaving] = useState(false);
 
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
@@ -24,10 +26,24 @@ export default function CatalogScreen() {
     fetchCategories();
   }, []);
 
+  // Filter categories when search query changes
+  useEffect(() => {
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) {
+      setFilteredCategories(categories);
+      return;
+    }
+    const filtered = categories.filter(category => 
+      category.name.toLowerCase().includes(query)
+    );
+    setFilteredCategories(filtered);
+  }, [searchQuery, categories]);
+
   const fetchCategories = async () => {
     try {
       const res = await api.get('/categories');
       setCategories(res.data);
+      setFilteredCategories(res.data);
     } catch (e) {
       // обработка ошибок
     }
@@ -62,8 +78,24 @@ export default function CatalogScreen() {
     <View style={{ flex: 1, padding: 20 }}>
       {/* Заголовок убран, чтобы не дублировать с навигацией */}
       <Button title="Добавить категорию" onPress={() => setShowAddCategory(true)} />
+      
+      <View style={styles.searchContainer}>
+        <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Поиск категорий..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        {searchQuery ? (
+          <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
+            <Ionicons name="close-circle" size={20} color="#666" />
+          </TouchableOpacity>
+        ) : null}
+      </View>
+
       <FlatList
-        data={categories}
+        data={filteredCategories}
         keyExtractor={(item) => item.id.toString()}
         renderItem={({ item }) => (
           <View style={styles.categoryBlock}>
@@ -85,6 +117,11 @@ export default function CatalogScreen() {
             </View>
           </View>
         )}
+        ListEmptyComponent={
+          <Text style={{ textAlign: 'center', color: '#888', marginTop: 20 }}>
+            {searchQuery ? 'Категории не найдены' : 'Нет категорий'}
+          </Text>
+        }
         style={{ marginTop: 24 }}
       />
       <Modal visible={showAddCategory} animationType="slide" transparent>
@@ -150,5 +187,25 @@ const styles = StyleSheet.create({
   categoryText: {
     fontSize: 18,
     color: '#222',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+    marginTop: 16,
+    marginBottom: 8,
+    paddingHorizontal: 12,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    height: 40,
+    fontSize: 16,
+  },
+  clearButton: {
+    padding: 4,
   },
 });
