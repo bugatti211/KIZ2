@@ -8,42 +8,48 @@ import { StackNavigationProp } from '@react-navigation/stack';
 // Описываем параметры навигации для Stack
 export type RootStackParamList = {
   CategoryProductsScreen: { category: string; categoryId: number };
-  // ... другие экраны, если есть
+  ProductCardScreen: { product: any };
 };
 
 export default function CatalogScreen() {
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [categoryName, setCategoryName] = useState('');
   const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
-  const [filteredCategories, setFilteredCategories] = useState<{ id: number; name: string }[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [saving, setSaving] = useState(false);
 
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
 
-  // Загрузка категорий из backend
+  // Загрузка категорий и продуктов из backend
   useEffect(() => {
-    fetchCategories();
+    fetchCategoriesAndProducts();
   }, []);
 
-  // Filter categories when search query changes
+  // Filter products when search query changes
   useEffect(() => {
     const query = searchQuery.toLowerCase().trim();
     if (!query) {
-      setFilteredCategories(categories);
+      setFilteredProducts(products);
       return;
     }
-    const filtered = categories.filter(category => 
-      category.name.toLowerCase().includes(query)
+    const filtered = products.filter(product =>      product.name.toLowerCase().includes(query) ||
+      product.description?.toLowerCase().includes(query)
     );
-    setFilteredCategories(filtered);
-  }, [searchQuery, categories]);
+    setFilteredProducts(filtered);
+  }, [searchQuery, products]);
 
-  const fetchCategories = async () => {
+  const fetchCategoriesAndProducts = async () => {
     try {
-      const res = await api.get('/categories');
-      setCategories(res.data);
-      setFilteredCategories(res.data);
+      const [categoriesRes, productsRes] = await Promise.all([
+        api.get('/categories'),
+        api.get('/products')
+      ]);
+      setCategories(categoriesRes.data);
+      const activeProducts = productsRes.data.filter((p: any) => p.active === true);
+      setProducts(activeProducts);
+      setFilteredProducts(activeProducts);
     } catch (e) {
       // обработка ошибок
     }
@@ -56,7 +62,7 @@ export default function CatalogScreen() {
       await api.post('/categories', { name: categoryName });
       setCategoryName('');
       setShowAddCategory(false);
-      await fetchCategories(); // всегда обновлять список после добавления
+      await fetchCategoriesAndProducts(); // всегда обновлять список после добавления
     } catch (e) {
       // обработка ошибок
     } finally {
@@ -68,7 +74,7 @@ export default function CatalogScreen() {
   const handleDeleteCategory = async (id: number) => {
     try {
       await api.delete(`/categories/${id}`);
-      await fetchCategories(); // всегда обновлять список после удаления
+      await fetchCategoriesAndProducts(); // всегда обновлять список после удаления
     } catch (e) {
       // обработка ошибок
     }
@@ -78,12 +84,11 @@ export default function CatalogScreen() {
     <View style={{ flex: 1, padding: 20 }}>
       {/* Заголовок убран, чтобы не дублировать с навигацией */}
       <Button title="Добавить категорию" onPress={() => setShowAddCategory(true)} />
-      
-      <View style={styles.searchContainer}>
+        <View style={styles.searchContainer}>
         <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Поиск категорий..."
+          placeholder="Поиск товаров..."
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
@@ -95,31 +100,53 @@ export default function CatalogScreen() {
       </View>
 
       <FlatList
-        data={filteredCategories}
+        data={searchQuery ? filteredProducts : categories}
         keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => (
-          <View style={styles.categoryBlock}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <TouchableOpacity
-                onPress={() => {
-                  navigation.navigate('CategoryProductsScreen', {
-                    category: item.name,
-                    categoryId: item.id,
-                  });
-                }}
-                style={{ flex: 1 }}
-              >
-                <Text style={styles.categoryText}>{item.name}</Text>
+        renderItem={({ item }) => {
+          if (searchQuery) {
+            // Отображение товара в результатах поиска
+            return (
+              <TouchableOpacity onPress={() => navigation.navigate('ProductCardScreen', { product: item })}>
+                <View style={[styles.categoryBlock, { flexDirection: 'row', alignItems: 'center' }]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.productName}>{item.name}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                      <Text style={{ color: item.stock > 0 ? '#388e3c' : '#d11a2a', marginRight: 8 }}>
+                        {item.stock > 0 ? '● В наличии' : '× Нет в наличии'}
+                      </Text>
+                      <Text style={{ fontWeight: 'bold' }}>{item.price.toLocaleString()} ₽</Text>
+                    </View>
+                  </View>
+                  <Ionicons name="chevron-forward" size={24} color="#666" />
+                </View>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => handleDeleteCategory(item.id)} accessibilityLabel="Удалить категорию">
-                <Ionicons name="trash-outline" size={22} color="#d11a2a" />
-              </TouchableOpacity>
+            );
+          }
+          
+          // Отображение категории, когда нет поиска
+          return (
+            <View style={styles.categoryBlock}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <TouchableOpacity
+                  onPress={() => {
+                    navigation.navigate('CategoryProductsScreen', {
+                      category: item.name,
+                      categoryId: item.id,
+                    });
+                  }}
+                  style={{ flex: 1 }}
+                >
+                  <Text style={styles.categoryText}>{item.name}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => handleDeleteCategory(item.id)} accessibilityLabel="Удалить категорию">
+                  <Ionicons name="trash-outline" size={22} color="#d11a2a" />
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        )}
-        ListEmptyComponent={
+          );
+        }}        ListEmptyComponent={
           <Text style={{ textAlign: 'center', color: '#888', marginTop: 20 }}>
-            {searchQuery ? 'Категории не найдены' : 'Нет категорий'}
+            {searchQuery ? 'Товары не найдены' : 'Нет категорий'}
           </Text>
         }
         style={{ marginTop: 24 }}
@@ -207,5 +234,10 @@ const styles = StyleSheet.create({
   },
   clearButton: {
     padding: 4,
+  },
+  productName: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#333',
   },
 });
