@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Button, TextInput, FlatList, StyleSheet, Modal, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, Button, TextInput, FlatList, StyleSheet, Modal, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../api';
 import { useAuthModal } from '../AuthContext';
@@ -243,25 +243,49 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
     }
   };
 
-  // Стили должны быть определены до использования
   const styles = StyleSheet.create({
-    createBlock: {
-      backgroundColor: '#f9f9f9',
+    container: {
+      flex: 1,
+      backgroundColor: '#f5f5f5',
+      padding: 16,
+    },
+    userCard: {
+      backgroundColor: '#fff',
       borderRadius: 12,
       padding: 18,
-      marginBottom: 18,
+      marginBottom: 16,
       elevation: 2,
       shadowColor: '#000',
       shadowOpacity: 0.08,
       shadowRadius: 4,
       shadowOffset: { width: 0, height: 1 },
     },
-    moderationBlock: {
-      backgroundColor: '#e3f2fd',
+    menuItem: {
+      backgroundColor: '#fff',
       borderRadius: 12,
       padding: 16,
-      marginBottom: 18,
+      marginBottom: 12,
+      flexDirection: 'row',
       alignItems: 'center',
+      elevation: 2,
+      shadowColor: '#000',
+      shadowOpacity: 0.08,
+      shadowRadius: 4,
+      shadowOffset: { width: 0, height: 1 },
+    },
+    menuIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: '#e3f2fd',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 12,
+    },
+    menuItemText: {
+      fontSize: 16,
+      color: '#333',
+      flex: 1,
     },
     modalOverlay: {
       flex: 1,
@@ -276,29 +300,28 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
       width: '92%',
       maxWidth: 400,
       elevation: 6,
-      shadowColor: '#000',
-      shadowOpacity: 0.2,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 2 },
     },
     modalTitle: {
       fontSize: 20,
       fontWeight: 'bold',
       marginBottom: 15,
+      color: '#333',
     },
     input: {
       borderWidth: 1,
+      borderColor: '#e0e0e0',
       borderRadius: 8,
-      padding: 10,
-      marginBottom: 12,
-      fontSize: 16,
-      width: '100%',
-    },
-    adBlock: {
-      backgroundColor: '#f2f2f2',
-      borderRadius: 10,
       padding: 12,
       marginBottom: 12,
+      fontSize: 16,
+      backgroundColor: '#fff',
+    },
+    adBlock: {
+      backgroundColor: '#fff',
+      borderRadius: 10,
+      padding: 16,
+      marginBottom: 12,
+      elevation: 1,
     },
     approveBtn: {
       backgroundColor: '#4caf50',
@@ -369,6 +392,15 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
     },
   });
 
+  const renderMenuItem = (icon: string, text: string, onPress: () => void, color: string = '#e3f2fd') => (
+    <TouchableOpacity style={styles.menuItem} onPress={onPress}>
+      <View style={[styles.menuIcon, { backgroundColor: color }]}>
+        <Text>{icon}</Text>
+      </View>
+      <Text style={styles.menuItemText}>{text}</Text>
+    </TouchableOpacity>
+  );
+
   // При открытии личной информации заполняем поля
   useEffect(() => {
     if (showPersonalInfo && user) {
@@ -419,51 +451,95 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
       </View>
     </Modal>
   );
-
   return (
-    <View style={{ flex: 1, padding: 20 }}>
-      {/* Имя пользователя */}
-      {user && user.name ? (
-        <View style={{ borderRadius: 12, padding: 18, marginBottom: 18, elevation: 2, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
-          <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#222', textAlign: 'left' }}>{user.name}</Text>
+    <ScrollView style={styles.container}>
+      {/* User Profile Card */}
+      {user && (
+        <View style={styles.userCard}>
+          <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#333', marginBottom: 4 }}>
+            {user.name || 'Пользователь'}
+          </Text>
+          <Text style={{ fontSize: 14, color: '#666' }}>{user.email}</Text>
         </View>
-      ) : user === null ? (
-        <Text style={{ textAlign: 'left' }}>Загрузка профиля...</Text>
-      ) : null}
-      {/* Кнопка для открытия личной информации */}
-      <View style={styles.createBlock}>
-        <Button title="Личная информация" onPress={() => setShowPersonalInfo(true)} />
+      )}
+
+      {/* Menu Items */}
+      {renderMenuItem('👤', 'Личная информация', () => setShowPersonalInfo(true))}
+      {renderMenuItem('📝', 'Создать объявление', () => setShowCreate(true))}
+      {renderMenuItem('⚖️', 'Объявления на модерацию', () => setShowModeration(true))}
+      {renderMenuItem('🛍️', 'Управление товарами', () => navigation.navigate('ProductManagementScreen'))}
+      {renderMenuItem('📦', 'Поставки', () => setShowSupplyModal(true))}
+      
+      {/* Auth Button */}
+      <View style={{ marginTop: 16 }}>
+        {user ? (
+          renderMenuItem('🚪', 'Выйти', async () => {
+            await AsyncStorage.removeItem('token');
+            setUser(null);
+            setShowAuthModal(true);
+            setAuthMode('login');
+            if (setIsAuthenticated) setIsAuthenticated(false);
+          }, '#ffebee')
+        ) : (
+          <>
+            {renderMenuItem('🔑', 'Войти', () => {
+              setAuthMode('login');
+              setShowAuthModal(true);
+            })}
+            {renderMenuItem('✨', 'Зарегистрироваться', () => {
+              setAuthMode('register');
+              setShowAuthModal(true);
+            })}
+          </>
+        )}
       </View>
-      {/* Модальное окно личной информации */}
+
+      {/* Personal Info Modal */}
       <Modal visible={showPersonalInfo} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Личная информация</Text>
-            <Text style={{ marginBottom: 4 }}>Имя</Text>
-            <TextInput value={editName} onChangeText={setEditName} style={styles.input} />
-            <Text style={{ marginBottom: 4 }}>Email</Text>
-            <TextInput value={editEmail} onChangeText={setEditEmail} style={styles.input} autoCapitalize="none" keyboardType="email-address" />
-            <Text style={{ marginBottom: 4 }}>Адрес</Text>
-            <TextInput value={editAddress} onChangeText={setEditAddress} style={styles.input} />
-            <Button title={saving ? 'Сохранение...' : 'Сохранить'} onPress={handleSavePersonalInfo} disabled={saving} />
-            <View style={{ height: 8 }} />
-            <Button title="Отмена" onPress={() => setShowPersonalInfo(false)} />
+            <TextInput
+              value={editName}
+              onChangeText={setEditName}
+              style={styles.input}
+              placeholder="Имя"
+            />
+            <TextInput
+              value={editEmail}
+              onChangeText={setEditEmail}
+              style={styles.input}
+              placeholder="Email"
+            />
+            <TextInput
+              value={editAddress}
+              onChangeText={setEditAddress}
+              style={styles.input}
+              placeholder="Адрес"
+            />
+            <Button
+              title={saving ? 'Сохранение...' : 'Сохранить'}
+              onPress={handleSavePersonalInfo}
+              disabled={saving}
+            />
+            <Button
+              title="Отмена"
+              onPress={() => setShowPersonalInfo(false)}
+            />
           </View>
         </View>
       </Modal>
-      {/* Блок создания объявления */}
-      <View style={styles.createBlock}>
-        <Button title="Создать объявление" onPress={() => setShowCreate(true)} />
-      </View>
-      {/* Модальное окно создания объявления */}
+
+      {/* Create Ad Modal */}
       <Modal visible={showCreate} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Новое объявление</Text>
+            <Text style={styles.modalTitle}>Создать объявление</Text>
             <TextInput
-              placeholder="Текст объявления"
               value={adText}
               onChangeText={setAdText}
+              placeholder="Текст объявления"
+              multiline
               style={styles.input}
             />
             <TextInput
@@ -474,161 +550,26 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
               style={styles.input}
             />
             {!!error && <Text style={{ color: 'red', marginBottom: 8 }}>{error}</Text>}
-            <Button title={submitting ? 'Отправка...' : 'Отправить на утверждение'} onPress={handleCreate} disabled={submitting} />
-            <Button title="Отмена" onPress={() => setShowCreate(false)} />
+            <Button
+              title={submitting ? 'Отправка...' : 'Отправить на утверждение'}
+              onPress={handleCreate}
+              disabled={submitting}
+            />
+            <Button
+              title="Отмена"
+              onPress={() => setShowCreate(false)}
+            />
           </View>
         </View>
       </Modal>
-      {/* Кнопка для показа объявлений на модерацию */}
-      <View style={styles.createBlock}>
-        <Button title="Объявления на модерацию" onPress={() => setShowModeration(true)} />
-      </View>      {/* Кнопка управления товарами */}
-      <View style={styles.createBlock}>
-        <Button title="Управление товарами" onPress={() => navigation.navigate('ProductManagementScreen')} />
-      </View>
-      {/* Кнопка поставок */}
-      <View style={styles.createBlock}>
-        <Button title="Поставки" onPress={() => setShowSupplyModal(true)} />
-      </View>      {/* Модальное окно поставок */}
-      <Modal visible={showSupplyModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalView}>
-            <Text style={styles.modalTitle}>Поставки</Text>
-            <TouchableOpacity
-              style={[styles.button, styles.supplyButton]}
-              onPress={() => {
-                setShowSupplyModal(false);
-                navigation.navigate('NewSupply');
-              }}
-            >
-              <Text style={styles.buttonText}>Новая</Text>
-            </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.button, styles.supplyButton]}
-              onPress={() => {
-                setShowSupplyModal(false);
-                navigation.navigate('SupplyHistory');
-              }}
-            >
-              <Text style={styles.buttonText}>История</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.button, styles.closeButton]}
-              onPress={() => setShowSupplyModal(false)}
-            >
-              <Text style={styles.buttonText}>Закрыть</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-      {/* Модальное окно добавления/редактирования товара */}
-      <Modal visible={showProductModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{editProduct ? 'Редактировать товар' : 'Добавить товар'}</Text>
-            <TextInput
-              placeholder="Название товара"
-              value={productName}
-              onChangeText={setProductName}
-              style={styles.input}
-              maxLength={50}
-            />
-            <Text style={{ marginBottom: 4 }}>Категория</Text>
-            <View style={{ borderWidth: 1, borderRadius: 8, marginBottom: 12 }}>
-              <FlatList
-                data={categories}
-                horizontal
-                keyExtractor={item => item.id.toString()}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={{ padding: 8, backgroundColor: productCategory === item.id ? '#e3f2fd' : '#fff', borderRadius: 8, marginRight: 8 }}
-                    onPress={() => setProductCategory(item.id)}
-                  >
-                    <Text>{item.name}</Text>
-                  </TouchableOpacity>
-                )}
-                ListEmptyComponent={<Text style={{ color: '#888', padding: 8 }}>Нет категорий</Text>}
-                contentContainerStyle={{ padding: 4 }}
-              />
-            </View>
-            <TextInput
-              placeholder="Описание (до 200 символов)"
-              value={productDescription}
-              onChangeText={setProductDescription}
-              style={styles.input}
-              maxLength={200}
-              multiline
-            />
-            <TextInput
-              placeholder="Рекомендации (до 200 символов)"
-              value={productRecommendations}
-              onChangeText={setProductRecommendations}
-              style={styles.input}
-              maxLength={200}
-              multiline
-            />
-            <TextInput
-              placeholder="Цена"
-              value={productPrice}
-              onChangeText={setProductPrice}
-              style={styles.input}
-              keyboardType="numeric"
-            />
-            <TextInput
-              placeholder="Остаток"
-              value={productStock}
-              onChangeText={setProductStock}
-              style={styles.input}
-              keyboardType="numeric"
-            />
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-              <Text style={{ marginRight: 8 }}>Активен</Text>
-              <TouchableOpacity
-                onPress={() => setProductActive(a => !a)}
-                style={{ width: 40, height: 24, borderRadius: 12, backgroundColor: productActive ? '#4caf50' : '#ccc', justifyContent: 'center' }}
-              >
-                <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff', marginLeft: productActive ? 18 : 2 }} />
-              </TouchableOpacity>
-            </View>
-            <Button title={editProduct ? 'Сохранить' : 'Добавить'} onPress={handleSaveProduct} />
-            <View style={{ height: 8 }} />
-            <Button title="Отмена" onPress={() => setShowProductModal(false)} />
-          </View>
-        </View>
-      </Modal>
-      {/* Кнопка выхода или входа/регистрации */}
-      <View style={{ marginTop: 16 }}>
-        {user ? (
-          <Button title="Выйти" color="#e53935" onPress={async () => {
-            await AsyncStorage.removeItem('token');
-            setUser(null); // Сбросить пользователя локально
-            setShowAuthModal(true); // Открыть глобальное окно авторизации
-            setAuthMode('login'); // Переключить на форму входа
-            if (setIsAuthenticated) setIsAuthenticated(false);
-          }} />
-        ) : (
-          <>
-            <Button title="Войти" onPress={() => {
-              setAuthMode('login');
-              setShowAuthModal(true);
-            }} />
-            <View style={{ height: 8 }} />
-            <Button title="Зарегистрироваться" onPress={() => {
-              setAuthMode('register');
-              setShowAuthModal(true);
-            }} />
-          </>
-        )}
-      </View>
-      {/* Модальное окно объявлений на модерацию */}
+      {/* Moderation Modal */}
       <Modal visible={showModeration} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { maxHeight: '80%' }]}>
             <Text style={styles.modalTitle}>Объявления на модерацию</Text>
             {loading ? (
-              <ActivityIndicator size="large" />
+              <ActivityIndicator />
             ) : (
               <FlatList
                 data={ads}
@@ -637,12 +578,17 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
                   <View style={styles.adBlock}>
                     <Text style={{ fontWeight: 'bold' }}>{item.text}</Text>
                     <Text>Телефон: {item.phone}</Text>
-                    <Text>Отправитель: {item.User?.name || '—'} ({item.User?.email || '—'})</Text>
                     <View style={{ flexDirection: 'row', marginTop: 8 }}>
-                      <TouchableOpacity style={styles.approveBtn} onPress={() => handleApprove(item.id)}>
+                      <TouchableOpacity
+                        style={styles.approveBtn}
+                        onPress={() => handleApprove(item.id)}
+                      >
                         <Text style={{ color: '#fff' }}>Утвердить</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity style={styles.rejectBtn} onPress={() => handleReject(item.id)}>
+                      <TouchableOpacity
+                        style={styles.rejectBtn}
+                        onPress={() => handleReject(item.id)}
+                      >
                         <Text style={{ color: '#fff' }}>Отменить</Text>
                       </TouchableOpacity>
                     </View>
@@ -654,7 +600,9 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
           </View>
         </View>
       </Modal>
+
+      {/* Supply Modal */}
       <SupplyModal />
-    </View>
+    </ScrollView>
   );
 }
