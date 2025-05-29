@@ -469,6 +469,7 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
       {renderMenuItem('⚖️', 'Объявления на модерацию', () => setShowModeration(true))}
       {renderMenuItem('🛍️', 'Управление товарами', () => navigation.navigate('ProductManagementScreen'))}
       {renderMenuItem('📦', 'Поставки', () => setShowSupplyModal(true))}
+      {renderMenuItem('💰', 'Оффлайн-продажи', () => navigation.navigate('OfflineSalesScreen'))}
       
       {/* Auth Button */}
       <View style={{ marginTop: 16 }}>

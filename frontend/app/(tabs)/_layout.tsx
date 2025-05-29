@@ -14,6 +14,7 @@ import AdsScreen from './AdsScreen';
 import NewSupplyScreen from './NewSupplyScreen';
 import SupplyHistoryScreen from './SupplyHistoryScreen';
 import OrdersScreen from './OrdersScreen';
+import OfflineSalesScreen from './OfflineSalesScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -22,6 +23,21 @@ function ProfileStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="ProfileMain" component={ProfileScreen} options={{ title: 'Профиль', headerShown: true }}/>
+      <Stack.Screen 
+        name="OfflineSalesScreen" 
+        component={OfflineSalesScreen} 
+        options={{ 
+          title: 'Оффлайн-продажи',
+          headerShown: true,
+          headerStyle: {
+            backgroundColor: '#fff',
+          },
+          headerTintColor: '#000',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          }
+        }} 
+      />
       <Stack.Screen 
         name="ProductManagementScreen" 
         component={ProductManagementScreen} 

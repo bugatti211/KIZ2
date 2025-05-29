@@ -8,10 +8,12 @@ import Product from './product.model';
 import Contact from './contact.model';
 import { Order, OrderItem } from './order.model';
 import { Supply, SupplyItem } from './supply.model';
+import Sale, { SaleItem } from './sale.model';
 import { asyncHandler } from './asyncHandler';
 import { authMiddleware } from './authMiddleware';
 import type { Request, Response } from 'express';
 import sequelizeInstance from './sequelize';
+import { Op } from 'sequelize';
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
@@ -676,6 +678,163 @@ app.get('/orders', authMiddleware as any, asyncHandler(async (req: Request, res:
   } catch (error) {
     console.error('Error fetching orders:', error);
     res.status(500).json({ error: 'Failed to fetch orders' });
+  }
+}));
+
+// Sale Endpoints
+app.get('/sales', asyncHandler(async (req: Request, res: Response) => {
+  const sales = await Sale.findAll({
+    include: [{
+      model: SaleItem,
+      as: 'items',
+      include: [{
+        model: Product,
+        as: 'product',
+        include: [{
+          model: Category,
+          as: 'category'
+        }]
+      }]
+    }],
+    order: [['date', 'DESC']]
+  });
+  res.json(sales);
+}));
+
+app.get('/sales/today', asyncHandler(async (req: Request, res: Response) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const sales = await Sale.findAll({
+    where: {
+      date: {
+        [Op.gte]: today
+      }
+    },
+    include: [{
+      model: SaleItem,
+      as: 'items',
+      include: [{
+        model: Product,
+        as: 'product',
+        include: [{
+          model: Category,
+          as: 'category'
+        }]
+      }]
+    }]
+  });
+  
+  const totalAmount = sales.reduce((sum, sale) => sum + Number(sale.total), 0);
+  const totalSales = sales.length;
+  
+  res.json({ totalAmount, totalSales, sales });
+}));
+
+app.get('/sales/monthly', asyncHandler(async (req: Request, res: Response) => {
+  const firstDayOfMonth = new Date();
+  firstDayOfMonth.setDate(1);
+  firstDayOfMonth.setHours(0, 0, 0, 0);
+  
+  const sales = await Sale.findAll({
+    where: {
+      date: {
+        [Op.gte]: firstDayOfMonth
+      }
+    },
+    include: [{
+      model: SaleItem,
+      as: 'items',
+      include: [{
+        model: Product,
+        as: 'product',
+        include: [{
+          model: Category,
+          as: 'category'
+        }]
+      }]
+    }]
+  });
+  
+  const totalAmount = sales.reduce((sum, sale) => sum + Number(sale.total), 0);
+  const totalSales = sales.length;
+  
+  res.json({ totalAmount, totalSales, sales });
+}));
+
+app.post('/sales', asyncHandler(async (req: Request, res: Response) => {
+  const { items } = req.body;
+  
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'Invalid sale items' });
+  }
+  const transaction = await sequelizeInstance.transaction();
+    try {
+    // Calculate total sale amount using actual product prices
+    const total = await items.reduce(async (promise, item) => {
+      const sum = await promise;
+      const product = await Product.findByPk(item.productId);
+      if (!product) {
+        throw new Error(`Product with id ${item.productId} not found`);
+      }
+      return sum + (Number(product.price) * Number(item.quantity));
+    }, Promise.resolve(0));
+    
+    // Create sale record
+    const sale = await Sale.create({
+      date: new Date(),
+      total
+    }, { transaction });
+      // Create sale items and update product stock
+    for (const item of items) {
+      // Get product
+      const product = await Product.findByPk(item.productId);
+      if (!product) {
+        throw new Error(`Product with id ${item.productId} not found`);
+      }
+      
+      // Check stock
+      if (product.stock < item.quantity) {
+        throw new Error(`Insufficient stock for product ${product.name}`);
+      }
+      
+      // Create sale item using product's actual price
+      await SaleItem.create({
+        saleId: sale.id,
+        productId: item.productId,
+        quantity: item.quantity,
+        price: product.price, // Use product's actual price instead of request price
+        total: item.quantity * product.price // Calculate total with actual price
+      }, { transaction });
+      
+      // Update product stock
+      await product.update({
+        stock: product.stock - item.quantity
+      }, { transaction });
+    }
+    
+    await transaction.commit();
+    
+    // Fetch complete sale data with related items
+    const completeSale = await Sale.findByPk(sale.id, {
+      include: [{
+        model: SaleItem,
+        as: 'items',
+        include: [{
+          model: Product,
+          as: 'product',
+          include: [{
+            model: Category,
+            as: 'category'
+          }]
+        }]
+      }]
+    });
+    
+    res.status(201).json(completeSale);
+  } catch (e: any) {
+    await transaction.rollback();
+    res.status(400).json({ error: e.message });
   }
 }));
 
