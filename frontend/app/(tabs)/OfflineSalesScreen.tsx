@@ -183,12 +183,8 @@ export default function OfflineSalesScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
+    <View style={styles.container}>      {/* Header */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>Оффлайн-продажи</Text>
-        </View>
         <TouchableOpacity
           style={styles.addButton}
           onPress={() => setShowNewSaleModal(true)}
@@ -415,56 +411,73 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
-  },
-  headerTitle: {
-    fontSize: 24,
+    marginBottom: 24,
+    backgroundColor: '#fff',
+    paddingVertical: 8,
+  },  headerTitle: {
+    fontSize: 26,
     fontWeight: 'bold',
-  },
-  addButton: {
+    color: '#1a1a1a',
+    letterSpacing: 0.3,
+  },addButton: {
     backgroundColor: '#4caf50',
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 8,
+    padding: 14,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
   addButtonText: {
     color: '#fff',
     marginLeft: 8,
     fontSize: 16,
-    fontWeight: '500',
-  },
-  statsContainer: {
+    fontWeight: '600',
+  },statsContainer: {
     flexDirection: 'row',
-    marginBottom: 16,
+    marginBottom: 24,
     gap: 16,
   },
   statsCard: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f8f9fa',
     padding: 16,
-    borderRadius: 8,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   statsTitle: {
     fontSize: 14,
     color: '#666',
     marginBottom: 4,
-  },
-  statsValue: {
-    fontSize: 20,
+  },  statsValue: {
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#2196F3',
+    marginVertical: 4,
   },
   statsSubtitle: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#666',
     marginTop: 4,
-  },
-  saleCard: {
-    backgroundColor: '#f5f5f5',
+  },saleCard: {
+    backgroundColor: '#fff',
     padding: 16,
-    borderRadius: 8,
+    borderRadius: 12,
     marginBottom: 16,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: '#eee',
   },
   saleHeader: {
     flexDirection: 'row',
@@ -479,12 +492,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#4caf50',
-  },
-  saleProductItem: {
+  },  saleProductItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    marginBottom: 8,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#eee',
   },
   saleProductDetails: {
     flex: 1,
@@ -515,8 +533,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     marginRight: 8,
-  },
-  modalContainer: {
+  },  modalContainer: {
     flex: 1,
     backgroundColor: '#fff',
   },
@@ -525,15 +542,24 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
+    paddingVertical: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
-  },
-  modalTitle: {
-    fontSize: 20,
+    backgroundColor: '#fff',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },  modalTitle: {
+    fontSize: 22,
     fontWeight: 'bold',
+    color: '#1a1a1a',
   },
   closeButton: {
-    padding: 8,
+    padding: 10,
+    borderRadius: 20,
+    backgroundColor: '#f0f0f0',
   },
   modalContent: {
     flex: 1,
@@ -560,14 +586,15 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     marginLeft: 8,
-  },
-  input: {
+  },  input: {
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
+    borderColor: '#e0e0e0',
+    borderRadius: 12,
+    padding: 14,
     marginBottom: 16,
     fontSize: 16,
+    backgroundColor: '#f8f9fa',
+    color: '#333',
   },
   completeSaleContainer: {
     marginTop: 24,
@@ -580,16 +607,21 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 16,
     textAlign: 'center',
-  },
-  completeButton: {
+  },  completeButton: {
     backgroundColor: '#4caf50',
     padding: 16,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: 'center',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    marginTop: 8,
   },
   completeButtonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
   },
   removeButton: {
@@ -600,10 +632,12 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 24,
     fontSize: 16,
-  },
-  productItem: {
+  },  productItem: {
     padding: 16,
-    borderBottomWidth: 1,
+    marginVertical: 4,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 1,
     borderBottomColor: '#eee',
   },
   productStock: {
