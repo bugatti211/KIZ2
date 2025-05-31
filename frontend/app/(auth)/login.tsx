@@ -2,19 +2,32 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, Button, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { login } from '../authApi';
+import { useRouter } from 'expo-router';
 
-export default function LoginScreen({ navigation }: any) {
+export default function LoginScreen() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert('Ошибка', 'Пожалуйста, заполните все поля');
+      return;
+    }
+
     setLoading(true);
     try {
       const data = await login(email, password);
       await AsyncStorage.setItem('token', data.token);
-      Alert.alert('Успех', 'Вход выполнен!');
-      navigation.replace('/(tabs)');
+      Alert.alert('Успех', 'Вход выполнен!', [
+        {
+          text: 'OK',
+          onPress: () => {
+            router.replace('/(tabs)/AdsScreen');
+          }
+        }
+      ]);
     } catch (e: any) {
       Alert.alert('Ошибка', e.message || 'Ошибка входа');
     } finally {

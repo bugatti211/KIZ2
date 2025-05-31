@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { authEvents, AUTH_EVENTS } from '../events';
 import { Ionicons } from '@expo/vector-icons';
 import CatalogScreen from './CatalogScreen';
 import ConsultScreen from './ConsultScreen';
@@ -144,11 +145,7 @@ function CatalogStack() {
 export default function TabLayout() {
   const [isAdmin, setIsAdmin] = useState(false);
 
-  useEffect(() => {
-    checkAdminStatus();
-  }, []);
-
-  const checkAdminStatus = async () => {
+  const checkAdminStatus = useCallback(async () => {
     try {
       const token = await AsyncStorage.getItem('token');
       if (token) {
@@ -161,7 +158,20 @@ export default function TabLayout() {
       console.error('Error checking admin status:', error);
       setIsAdmin(false);
     }
-  };
+  }, []);
+
+  // Проверяем статус при монтировании компонента
+  useEffect(() => {
+    checkAdminStatus();
+  }, [checkAdminStatus]);
+  // Добавляем слушатель изменений токена через EventEmitter
+  useEffect(() => {
+    authEvents.on(AUTH_EVENTS.TOKEN_CHANGE, checkAdminStatus);
+
+    return () => {
+      authEvents.off(AUTH_EVENTS.TOKEN_CHANGE, checkAdminStatus);
+    };
+  }, [checkAdminStatus]);
 
   return (
     <Tab.Navigator 

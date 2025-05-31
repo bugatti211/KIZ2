@@ -253,14 +253,24 @@ app.get('/categories', asyncHandler(async (req: Request, res: Response) => {
   res.json(categories);
 }));
 
-app.post('/categories', asyncHandler(async (req: Request, res: Response) => {
+app.post('/categories', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
+  // @ts-ignore
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Только администратор может создавать категории' });
+  }
+  
   const { name } = req.body;
   if (!name) return res.status(400).json({ error: 'Название обязательно' });
   const category = await Category.create({ name });
   res.status(201).json(category);
 }));
 
-app.delete('/categories/:id', asyncHandler(async (req: Request, res: Response) => {
+app.delete('/categories/:id', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
+  // @ts-ignore
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Только администратор может удалять категории' });
+  }
+
   const { id } = req.params;
   const deleted = await Category.destroy({ where: { id } });
   if (!deleted) return res.status(404).json({ error: 'Категория не найдена' });

@@ -4,12 +4,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../api';
 import { useAuthModal } from '../AuthContext';
 import { styles } from '../styles/ProfileScreenStyles';
-
-interface ProfileScreenProps {
-  setIsAuthenticated?: (v: boolean) => void;
-  navigation?: any;
-  route?: any;
-}
+import { useRouter } from 'expo-router';
+import { authEvents, AUTH_EVENTS } from '../events';
 
 interface ProfileUser {
   id: number;
@@ -19,7 +15,15 @@ interface ProfileUser {
   role: string;
 }
 
+interface ProfileScreenProps {
+  setIsAuthenticated?: (v: boolean) => void;
+  navigation?: any;
+  route?: any;
+}
+
 export default function ProfileScreen({ setIsAuthenticated, navigation, route }: ProfileScreenProps): React.JSX.Element {
+  const router = useRouter();  const [user, setUser] = useState<ProfileUser | null>(null);
+  const { showAuthModal, setShowAuthModal, setAuthMode } = useAuthModal();
   // Common state
   const [showCreate, setShowCreate] = useState(false);
   const [showSupplyModal, setShowSupplyModal] = useState(false);
@@ -27,8 +31,6 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
   const [showModeration, setShowModeration] = useState(false);
   const [showEmployeeRegistration, setShowEmployeeRegistration] = useState(false);
     // User and auth state
-  const [user, setUser] = useState<ProfileUser | null>(null);
-  const { setShowAuthModal, setAuthMode, showAuthModal } = useAuthModal();
   
   // Personal info state
   const [editName, setEditName] = useState('');
@@ -115,11 +117,12 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
       const res = await api.get('/users');
       // Найти пользователя по email из токена
       const tokenPayload = JSON.parse(atob(token.split('.')[1]));
-      const currentUser = res.data.find((u: any) => u.email === tokenPayload.email);
+      const currentUser = res.data.find((u: ProfileUser) => u.email === tokenPayload.email);
       // Если нет address, подставить пустую строку для корректной работы формы
       setUser(currentUser ? { ...currentUser, address: currentUser.address || '' } : null);
     } catch (e) {
-      setUser(null); // сбрасываем user при ошибке
+      console.error('Error fetching user:', e);
+      setUser(null);
     }
   };
 
@@ -380,6 +383,14 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
     }
   };
 
+  const handleLogin = () => {
+    router.push('/(auth)/login');
+  };
+
+  const handleRegister = () => {
+    router.push('/(auth)/register');
+  };
+
   return (
     <ScrollView style={styles.container}>
       {/* Welcome Message for Unauthorized Users */}
@@ -391,19 +402,13 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
           </Text>
           <TouchableOpacity 
             style={[styles.authButton, styles.loginButton]}
-            onPress={() => {
-              setAuthMode('login');
-              setShowAuthModal(true);
-            }}
+            onPress={handleLogin}
           >
             <Text style={styles.authButtonText}>Войти</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.authButton, styles.registerButton]}
-            onPress={() => {
-              setAuthMode('register');
-              setShowAuthModal(true);
-            }}
+            onPress={handleRegister}
           >
             <Text style={styles.authButtonText}>Зарегистрироваться</Text>
           </TouchableOpacity>
@@ -425,10 +430,9 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
           {renderMenuItem('🛍️', 'Управление товарами', () => navigation.navigate('ProductManagementScreen'))}
           {renderMenuItem('📦', 'Поставки', () => setShowSupplyModal(true))}
           {renderMenuItem('👥', 'Регистрация сотрудника', () => setShowEmployeeRegistration(true))}
-          {renderMenuItem('💰', 'Оффлайн-продажи', () => navigation.navigate('OfflineSalesScreen'))}
-          
-          {renderMenuItem('🚪', 'Выйти', async () => {
+          {renderMenuItem('💰', 'Оффлайн-продажи', () => navigation.navigate('OfflineSalesScreen'))}            {renderMenuItem('🚪', 'Выйти', async () => {
             await AsyncStorage.removeItem('token');
+            authEvents.emit(AUTH_EVENTS.TOKEN_CHANGE, null);
             setUser(null);
             setShowAuthModal(true);
             setAuthMode('login');

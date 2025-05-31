@@ -1,169 +1,269 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, Button, Modal, TextInput, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import React, { useState, useCallback, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Modal,
+  StyleSheet,
+  TextInput,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../api';
-import { useNavigation } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
 
-// Описываем параметры навигации для Stack
-export type RootStackParamList = {
-  CategoryProductsScreen: { category: string; categoryId: number };
-  ProductCardScreen: { product: any };
-};
+interface Category {
+  id: string;
+  name: string;
+}
+
+interface Product {
+  id: string;
+  name: string;
+  category: Category;
+}
 
 export default function CatalogScreen() {
-  const [showAddCategory, setShowAddCategory] = useState(false);
-  const [categoryName, setCategoryName] = useState('');
-  const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
-  const [products, setProducts] = useState<any[]>([]);
-  const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showAddCategory, setShowAddCategory] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [categoryName, setCategoryName] = useState('');
+  const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-
-  // Загрузка категорий и продуктов из backend
-  useEffect(() => {
-    fetchCategoriesAndProducts();
+  const checkAdminStatus = useCallback(async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (token) {
+        const tokenData = JSON.parse(atob(token.split('.')[1]));
+        setIsAdmin(tokenData.role === 'admin');
+      } else {
+        setIsAdmin(false);
+      }
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+      setIsAdmin(false);
+    }
   }, []);
 
-  // Filter products when search query changes
-  useEffect(() => {
-    const query = searchQuery.toLowerCase().trim();
-    if (!query) {
-      setFilteredProducts(products);
-      return;
-    }
-    const filtered = products.filter(product =>      product.name.toLowerCase().includes(query) ||
-      product.description?.toLowerCase().includes(query)
-    );
-    setFilteredProducts(filtered);
-  }, [searchQuery, products]);
-
-  const fetchCategoriesAndProducts = async () => {
+  const fetchCategories = async () => {
+    setLoading(true);
     try {
-      const [categoriesRes, productsRes] = await Promise.all([
-        api.get('/categories'),
-        api.get('/products')
-      ]);
-      setCategories(categoriesRes.data);
-      const activeProducts = productsRes.data.filter((p: any) => p.active === true);
-      setProducts(activeProducts);
-      setFilteredProducts(activeProducts);
-    } catch (e) {
-      // обработка ошибок
+      setError('');
+      const response = await api.get('/categories');
+      setCategories(response.data);
+    } catch (err: any) {
+      console.error('Ошибка загрузки категорий:', err);
+      setError('Не удалось загрузить категории. Проверьте подключение к интернету или попробуйте позже.');
+      setCategories([]);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Добавление категории через backend
-  const handleAddCategory = async () => {
-    setSaving(true);
+  const handleSearch = (text: string) => {
+    setSearchQuery(text);
+    if (!text.trim()) {
+      setFilteredProducts(products);
+      return;
+    }
+    const filtered = products.filter(product => 
+      product.name.toLowerCase().includes(text.toLowerCase()) ||
+      product.category.name.toLowerCase().includes(text.toLowerCase())
+    );
+    setFilteredProducts(filtered);
+  };
+
+  const handleDeleteCategory = (categoryId: string) => {
+    setSelectedCategoryId(categoryId);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
     try {
-      await api.post('/categories', { name: categoryName });
+      setError('');
+      await api.delete(`/categories/${selectedCategoryId}`);
+      await fetchCategories();
+      setShowDeleteConfirm(false);
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.error || 'Ошибка при удалении категории';
+      setError(errorMessage);
+      if (err.response?.status === 403) {
+        Alert.alert('Ошибка доступа', errorMessage);
+        setShowDeleteConfirm(false);
+      }
+    }
+  };
+
+  const handleAddCategory = async () => {
+    if (!categoryName.trim()) {
+      setError('Введите название категории');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError('');
+      await api.post('/categories', { name: categoryName.trim() });
+      await fetchCategories();
       setCategoryName('');
       setShowAddCategory(false);
-      await fetchCategoriesAndProducts(); // всегда обновлять список после добавления
-    } catch (e) {
-      // обработка ошибок
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.error || 'Ошибка при добавлении категории';
+      setError(errorMessage);
+      if (err.response?.status === 403) {
+        Alert.alert('Ошибка доступа', errorMessage);
+        setShowAddCategory(false);
+      }
     } finally {
       setSaving(false);
     }
   };
 
-  // Удаление категории через backend
-  const handleDeleteCategory = async (id: number) => {
-    try {
-      await api.delete(`/categories/${id}`);
-      await fetchCategoriesAndProducts(); // всегда обновлять список после удаления
-    } catch (e) {
-      // обработка ошибок
-    }
-  };
+  useEffect(() => {
+    checkAdminStatus();
+    fetchCategories();
+  }, [checkAdminStatus]);
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <ActivityIndicator size="large" color="#2196f3" />
+      </View>
+    );
+  }
 
   return (
-    <View style={{ flex: 1, padding: 20 }}>
-      {/* Заголовок убран, чтобы не дублировать с навигацией */}
-      <Button title="Добавить категорию" onPress={() => setShowAddCategory(true)} />
-        <View style={styles.searchContainer}>
+    <View style={styles.container}>
+      {error ? (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity onPress={() => setError('')}>
+            <Text style={styles.dismissError}>Закрыть</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
+      <View style={styles.searchContainer}>
         <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Поиск товаров..."
+          placeholder="Поиск категорий и товаров..."
           value={searchQuery}
-          onChangeText={setSearchQuery}
+          onChangeText={handleSearch}
         />
         {searchQuery ? (
-          <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
+          <TouchableOpacity onPress={() => handleSearch('')} style={styles.clearButton}>
             <Ionicons name="close-circle" size={20} color="#666" />
           </TouchableOpacity>
         ) : null}
       </View>
 
-      <FlatList
-        data={searchQuery ? filteredProducts : categories}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => {
-          if (searchQuery) {
-            // Отображение товара в результатах поиска
-            return (
-              <TouchableOpacity onPress={() => navigation.navigate('ProductCardScreen', { product: item })}>
-                <View style={[styles.categoryBlock, { flexDirection: 'row', alignItems: 'center' }]}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.productName}>{item.name}</Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-                      <Text style={{ color: item.stock > 0 ? '#388e3c' : '#d11a2a', marginRight: 8 }}>
-                        {item.stock > 0 ? '● В наличии' : '× Нет в наличии'}
-                      </Text>
-                      <Text style={{ fontWeight: 'bold' }}>{item.price.toLocaleString()} ₽</Text>
-                    </View>
-                  </View>
-                  <Ionicons name="chevron-forward" size={24} color="#666" />
-                </View>
-              </TouchableOpacity>
-            );
-          }
-          
-          // Отображение категории, когда нет поиска
-          return (
-            <View style={styles.categoryBlock}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <TouchableOpacity
-                  onPress={() => {
-                    navigation.navigate('CategoryProductsScreen', {
-                      category: item.name,
-                      categoryId: item.id,
-                    });
-                  }}
-                  style={{ flex: 1 }}
-                >
-                  <Text style={styles.categoryText}>{item.name}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => handleDeleteCategory(item.id)} accessibilityLabel="Удалить категорию">
-                  <Ionicons name="trash-outline" size={22} color="#d11a2a" />
-                </TouchableOpacity>
+      <ScrollView>
+        {categories.length === 0 && !error ? (
+          <Text style={styles.emptyText}>Нет доступных категорий</Text>
+        ) : (
+          categories.map((category) => (
+            <View key={category.id} style={styles.categoryBlock}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={styles.categoryText}>{category.name}</Text>
+                {isAdmin && (
+                  <TouchableOpacity
+                    onPress={() => handleDeleteCategory(category.id)}
+                    style={{ padding: 4 }}
+                  >
+                    <Ionicons name="trash-outline" size={20} color="#d32f2f" />
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
-          );
-        }}        ListEmptyComponent={
-          <Text style={{ textAlign: 'center', color: '#888', marginTop: 20 }}>
-            {searchQuery ? 'Товары не найдены' : 'Нет категорий'}
-          </Text>
-        }
-        style={{ marginTop: 24 }}
-      />
-      <Modal visible={showAddCategory} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
+          ))
+        )}
+      </ScrollView>
+
+      {isAdmin && (
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => setShowAddCategory(true)}
+        >
+          <Ionicons name="add" size={24} color="#fff" />
+        </TouchableOpacity>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        visible={showDeleteConfirm}
+        transparent={true}
+        animationType="fade"
+      >
+        <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Новая категория</Text>
+            <Text style={styles.modalTitle}>Подтверждение удаления</Text>
+            <Text style={styles.modalText}>
+              Вы уверены, что хотите удалить эту категорию? Это действие нельзя отменить.
+            </Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setShowDeleteConfirm(false)}
+              >
+                <Text style={[styles.buttonText, { color: '#000' }]}>Отмена</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.deleteButton]}
+                onPress={confirmDelete}
+              >
+                <Text style={styles.buttonText}>Удалить</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Add Category Modal */}
+      <Modal
+        visible={showAddCategory}
+        transparent={true}
+        animationType="fade"
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Добавить категорию</Text>
             <TextInput
+              style={styles.input}
               placeholder="Название категории"
               value={categoryName}
               onChangeText={setCategoryName}
-              style={styles.input}
             />
-            <Button title={saving ? 'Добавление...' : 'Добавить'} onPress={handleAddCategory} disabled={saving || !categoryName.trim()} />
-            <View style={{ height: 8 }} />
-            <Button title="Отмена" onPress={() => setShowAddCategory(false)} />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => {
+                  setShowAddCategory(false);
+                  setCategoryName('');
+                  setError('');
+                }}
+              >
+                <Text style={[styles.buttonText, { color: '#000' }]}>Отмена</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: '#2196f3' }]}
+                onPress={handleAddCategory}
+                disabled={saving}
+              >
+                <Text style={styles.buttonText}>
+                  {saving ? 'Добавление...' : 'Добавить'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -172,72 +272,128 @@ export default function CatalogScreen() {
 }
 
 const styles = StyleSheet.create({
-  modalOverlay: {
+  container: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    padding: 16,
+    backgroundColor: '#fff',
+  },
+  centerContent: {
     justifyContent: 'center',
     alignItems: 'center',
   },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    width: '92%',
-    maxWidth: 400,
-    elevation: 6,
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  input: {
-    borderWidth: 1,
+  errorContainer: {
+    backgroundColor: '#ffebee',
+    padding: 12,
     borderRadius: 8,
-    padding: 10,
     marginBottom: 16,
+  },
+  errorText: {
+    color: '#d32f2f',
+    fontSize: 14,
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#666',
     fontSize: 16,
-    width: '100%',
+    marginTop: 20,
   },
-  categoryBlock: {
-    backgroundColor: '#f9f9f9',
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 12,
-    elevation: 1,
-  },
-  categoryText: {
-    fontSize: 18,
-    color: '#222',
+  dismissError: {
+    color: '#d32f2f',
+    fontSize: 12,
+    marginTop: 4,
+    textDecorationLine: 'underline',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#f5f5f5',
     borderRadius: 8,
-    marginTop: 16,
-    marginBottom: 8,
-    paddingHorizontal: 12,
+    padding: 8,
+    marginBottom: 16,
   },
   searchIcon: {
     marginRight: 8,
   },
   searchInput: {
     flex: 1,
-    height: 40,
     fontSize: 16,
   },
   clearButton: {
     padding: 4,
   },
-  productName: {
+  categoryBlock: {
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+  },
+  categoryText: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#333',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginBottom: 16,
+  },
+  modalText: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 24,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  modalButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginLeft: 12,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    fontSize: 16,
+  },
+  cancelButton: {
+    backgroundColor: '#e0e0e0',
+  },
+  deleteButton: {
+    backgroundColor: '#d32f2f',
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  addButton: {
+    position: 'absolute',
+    right: 16,
+    bottom: 16,
+    backgroundColor: '#2196f3',
+    borderRadius: 28,
+    width: 56,
+    height: 56,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,
   },
 });
