@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Button, TextInput, FlatList, StyleSheet, Modal, TouchableOpacity, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, Button, TextInput, FlatList, Modal, TouchableOpacity, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../api';
 import { useAuthModal } from '../AuthContext';
-import { Picker } from '@react-native-picker/picker';
+import { styles } from '../styles/ProfileScreenStyles';
 
 interface ProfileScreenProps {
   setIsAuthenticated?: (v: boolean) => void;
@@ -35,12 +35,11 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
   const [editEmail, setEditEmail] = useState('');
   const [editAddress, setEditAddress] = useState('');
   const [saving, setSaving] = useState(false);
-  
-  // Employee registration state
+    // Employee registration state
   const [employeeName, setEmployeeName] = useState('');
   const [employeeEmail, setEmployeeEmail] = useState('');
   const [employeePassword, setEmployeePassword] = useState('');
-  const [employeeRole, setEmployeeRole] = useState('Продавец');
+  const [employeeRole, setEmployeeRole] = useState('');
   const [employeeError, setEmployeeError] = useState('');
   
   // Ad state
@@ -258,173 +257,6 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
     }
   };
 
-  const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: '#f5f5f5',
-      padding: 16,
-    },
-    userCard: {
-      backgroundColor: '#fff',
-      borderRadius: 12,
-      padding: 18,
-      marginBottom: 16,
-      elevation: 2,
-      shadowColor: '#000',
-      shadowOpacity: 0.08,
-      shadowRadius: 4,
-      shadowOffset: { width: 0, height: 1 },
-    },
-    menuItem: {
-      backgroundColor: '#fff',
-      borderRadius: 12,
-      padding: 16,
-      marginBottom: 12,
-      flexDirection: 'row',
-      alignItems: 'center',
-      elevation: 2,
-      shadowColor: '#000',
-      shadowOpacity: 0.08,
-      shadowRadius: 4,
-      shadowOffset: { width: 0, height: 1 },
-    },
-    menuIcon: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: '#e3f2fd',
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginRight: 12,
-    },
-    menuItemText: {
-      fontSize: 16,
-      color: '#333',
-      flex: 1,
-    },
-    modalOverlay: {
-      flex: 1,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    modalContent: {
-      backgroundColor: '#fff',
-      borderRadius: 16,
-      padding: 20,
-      width: '92%',
-      maxWidth: 400,
-      elevation: 6,
-    },
-    modalTitle: {
-      fontSize: 20,
-      fontWeight: 'bold',
-      marginBottom: 15,
-      color: '#333',
-    },
-    input: {
-      borderWidth: 1,
-      borderColor: '#e0e0e0',
-      borderRadius: 8,
-      padding: 12,
-      marginBottom: 12,
-      fontSize: 16,
-      backgroundColor: '#fff',
-    },
-    adBlock: {
-      backgroundColor: '#fff',
-      borderRadius: 10,
-      padding: 16,
-      marginBottom: 12,
-      elevation: 1,
-    },
-    approveBtn: {
-      backgroundColor: '#4caf50',
-      padding: 8,
-      borderRadius: 6,
-      marginRight: 10,
-    },
-    rejectBtn: {
-      backgroundColor: '#e53935',
-      padding: 8,
-      borderRadius: 6,
-    },
-    sectionTitle: {
-      fontSize: 18,
-      fontWeight: 'bold',
-      marginBottom: 10,
-      color: '#333',
-    },
-    categoryBlock: {
-      backgroundColor: '#fff',
-      borderRadius: 10,
-      padding: 16,
-      marginBottom: 12,
-      elevation: 1,
-      shadowColor: '#000',
-      shadowOpacity: 0.05,
-      shadowRadius: 4,
-      shadowOffset: { width: 0, height: 2 },
-    },
-    supplyButtonsContainer: {
-      gap: 12,
-      marginBottom: 16,
-    },
-    supplyButton: {
-      backgroundColor: '#2196F3',
-      marginVertical: 5,
-      width: '100%',
-    },
-    modalView: {
-      backgroundColor: 'white',
-      borderRadius: 20,
-      padding: 35,
-      alignItems: 'center',
-      shadowColor: '#000',
-      shadowOffset: {
-        width: 0,
-        height: 2,
-      },
-      shadowOpacity: 0.25,
-      shadowRadius: 4,
-      elevation: 5,
-      width: '80%',
-    },
-    button: {
-      backgroundColor: '#2196F3',
-      borderRadius: 8,
-      padding: 12,
-      alignItems: 'center',
-      marginBottom: 8,
-      width: '100%',
-      elevation: 1,
-      shadowColor: '#000',
-      shadowOpacity: 0.2,
-      shadowRadius: 4,
-      shadowOffset: { width: 0, height: 1 },
-    },
-    buttonSecondary: {
-      backgroundColor: '#e0e0e0',
-    },
-    buttonDisabled: {
-      backgroundColor: '#ccc',
-      opacity: 0.7,
-    },
-    buttonText: {
-      color: '#fff',
-      fontSize: 16,
-      fontWeight: '600',
-    },
-    errorText: {
-      color: 'red',
-      marginBottom: 8,
-      fontSize: 14,
-    },
-    closeButton: {
-      backgroundColor: '#e0e0e0',
-    },
-  });
-
   const renderMenuItem = (icon: string, text: string, onPress: () => void, color: string = '#e3f2fd') => (
     <TouchableOpacity style={styles.menuItem} onPress={onPress}>
       <View style={[styles.menuIcon, { backgroundColor: color }]}>
@@ -522,14 +354,13 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
   };
 
   return (
-    <ScrollView style={styles.container}>
-      {/* User Profile Card */}
+    <ScrollView style={styles.container}>      {/* User Profile Card */}
       {user && (
         <View style={styles.userCard}>
-          <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#333', marginBottom: 4 }}>
+          <Text style={styles.userName}>
             {user.name || 'Пользователь'}
           </Text>
-          <Text style={{ fontSize: 14, color: '#666' }}>{user.email}</Text>
+          <Text style={styles.userEmail}>{user.email}</Text>
         </View>
       )}
 
@@ -541,8 +372,7 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
       {renderMenuItem('👥', 'Регистрация сотрудника', () => setShowEmployeeRegistration(true))}
       {renderMenuItem('💰', 'Оффлайн-продажи', () => navigation.navigate('OfflineSalesScreen'))}
       
-      {/* Auth Button */}
-      <View style={{ marginTop: 16 }}>
+      {/* Auth Button */}      <View style={styles.marginTop16}>
         {user ? (
           renderMenuItem('🚪', 'Выйти', async () => {
             await AsyncStorage.removeItem('token');
@@ -563,16 +393,14 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
             })}
           </>
         )}
-      </View>
-
-      {/* Personal Info Modal */}
+      </View>      {/* Personal Info Modal */}
       <Modal visible={showPersonalInfo} animationType="slide" transparent>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={{ flex: 1 }}
+          style={styles.flexOne}
         >
           <View style={styles.modalOverlay}>
-            <ScrollView style={{ width: '100%' }}>
+            <ScrollView style={styles.fullWidth}>
               <View style={styles.modalContent}>
                 <Text style={styles.modalTitle}>Личная информация</Text>
                 <TextInput
@@ -618,19 +446,18 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Employee Registration Modal */}
-      <Modal visible={showEmployeeRegistration} animationType="slide" transparent>
+      {/* Employee Registration Modal */}      <Modal visible={showEmployeeRegistration} animationType="slide" transparent>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={{ flex: 1 }}
+          style={styles.flexOne}
         >
           <View style={styles.modalOverlay}>
-            <ScrollView style={{ width: '100%' }}>
-              <View style={styles.modalContent}>
+            <View style={styles.modalContent}>
+              <ScrollView style={styles.fullWidth}>
                 <Text style={styles.modalTitle}>Регистрация сотрудника</Text>
                 
                 {employeeError ? (
-                  <Text style={{ color: 'red', marginBottom: 8 }}>{employeeError}</Text>
+                  <Text style={styles.errorText}>{employeeError}</Text>
                 ) : null}
                 
                 <TextInput
@@ -651,8 +478,7 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
                   autoCapitalize="none"
                   autoCorrect={false}
                   editable={true}
-                />
-                <TextInput
+                />                <TextInput
                   value={employeePassword}
                   onChangeText={setEmployeePassword}
                   style={styles.input}
@@ -662,16 +488,25 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
                   autoCorrect={false}
                   editable={true}
                 />
-                <View style={styles.input}>
-                  <Picker
-                    selectedValue={employeeRole}
-                    onValueChange={(itemValue) => setEmployeeRole(itemValue)}
-                    style={{ height: 50 }}
-                  >
-                    <Picker.Item label="Продавец" value="Продавец" />
-                    <Picker.Item label="Бухгалтер" value="Бухгалтер" />
-                    <Picker.Item label="Грузчик" value="Грузчик" />
-                  </Picker>
+                <Text style={styles.label}>Выберите роль:</Text>
+                <View style={styles.roleButtons}>
+                  {['Продавец', 'Бухгалтер', 'Грузчик'].map((role) => (
+                    <TouchableOpacity
+                      key={role}
+                      style={[
+                        styles.roleButton,
+                        employeeRole === role && styles.roleButtonSelected
+                      ]}
+                      onPress={() => setEmployeeRole(role)}
+                    >
+                      <Text style={[
+                        styles.roleButtonText,
+                        employeeRole === role && styles.roleButtonTextSelected
+                      ]}>
+                        {role}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
                 <TouchableOpacity
                   style={[
@@ -695,8 +530,8 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
                 >
                   <Text style={[styles.buttonText, { color: '#666' }]}>Отмена</Text>
                 </TouchableOpacity>
-              </View>
-            </ScrollView>
+              </ScrollView>
+            </View>
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -729,8 +564,7 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
                   style={styles.input}
                   autoCorrect={false}
                   editable={true}
-                />
-                {!!error && <Text style={{ color: 'red', marginBottom: 8 }}>{error}</Text>}
+                />                {!!error && <Text style={styles.errorText}>{error}</Text>}
                 <Button
                   title={submitting ? 'Отправка...' : 'Отправить на утверждение'}
                   onPress={handleCreate}
@@ -747,8 +581,7 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
       </Modal>
 
       {/* Moderation Modal */}      <Modal visible={showModeration} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { maxHeight: '80%' }]}>
+        <View style={styles.modalOverlay}>          <View style={[styles.modalContent, styles.maxHeightContent]}>
             <Text style={styles.modalTitle}>Объявления на модерацию</Text>
             {loading ? (
               <ActivityIndicator />
@@ -757,21 +590,19 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
                 data={ads}
                 keyExtractor={(item: any) => item.id.toString()}
                 renderItem={({ item }: { item: any }) => (
-                  <View style={styles.adBlock}>
-                    <Text style={{ fontWeight: 'bold' }}>{item.text}</Text>
+                  <View style={styles.adBlock}>                    <Text style={styles.boldText}>{item.text}</Text>
                     <Text>Телефон: {item.phone}</Text>
-                    <View style={{ flexDirection: 'row', marginTop: 8 }}>
+                    <View style={styles.spacedRow}>
                       <TouchableOpacity
                         style={styles.approveBtn}
                         onPress={() => handleApprove(item.id)}
-                      >
-                        <Text style={{ color: '#fff' }}>Утвердить</Text>
+                      >                    <Text style={styles.whiteText}>Утвердить</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={styles.rejectBtn}
                         onPress={() => handleReject(item.id)}
                       >
-                        <Text style={{ color: '#fff' }}>Отменить</Text>
+                        <Text style={styles.whiteText}>Отменить</Text>
                       </TouchableOpacity>
                     </View>
                   </View>

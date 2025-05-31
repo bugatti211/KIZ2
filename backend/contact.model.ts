@@ -28,10 +28,9 @@ Contact.init(
       type: DataTypes.STRING,
       allowNull: false,
     },
-  },
-  {
+  },  {
     sequelize,
-    modelName: 'Contact',
+    modelName: 'contacts',
   }
 );
 
