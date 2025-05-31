@@ -356,8 +356,7 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
           <TouchableOpacity
             style={[styles.button, styles.supplyButton]}
             onPress={() => {
-              setShowSupplyModal(false);
-              navigation.navigate('NewSupply');
+              setShowSupplyModal(false);              navigationNative.navigate('NewSupply');
             }}
           >
             <Text style={styles.buttonText}>Новая</Text>
@@ -367,7 +366,7 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
             style={[styles.button, styles.supplyButton]}
             onPress={() => {
               setShowSupplyModal(false);
-              navigation.navigate('SupplyHistory');
+              navigationNative.navigate('SupplyHistory');
             }}
           >
             <Text style={styles.buttonText}>История</Text>
@@ -512,19 +511,21 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
                 </View>
               </View>
             </View>
-          </Modal>
+          </Modal>          {/* Модальное окно поставок */}
+          <SupplyModal />
 
           {user ? (
             <>
-              {/* Профиль пользователя */}          <View style={styles.profileContainer}>
+              {/* Профиль пользователя */}
+              <View style={styles.profileContainer}>
                 <Text style={styles.name}>{user.name}</Text>
                 <Text style={styles.email}>{user.email}</Text>
                 <Text style={styles.role}>{user.role}</Text>
-              </View>{/* Меню действий */}
+              </View>
+              {/* Меню действий */}
               <View style={styles.menuContainer}>
                 {renderMenuItem('👤', 'Личные данные', () => setShowPersonalInfo(true))}
-                {renderMenuItem('🛍️', 'Мои заказы', () => router.push('/(tabs)/OrdersScreen'))}
-                {renderMenuItem('📦', 'Управление товарами', () => navigation.navigate('ProductManagementScreen'))}
+                {renderMenuItem('🛍️', 'Мои заказы', () => router.push('/(tabs)/OrdersScreen'))}                {renderMenuItem('📦', 'Управление товарами', () => navigationNative.navigate('ProductManagementScreen'))}
                 {renderMenuItem('📋', 'Поставки', () => setShowSupplyModal(true))}
                 {renderMenuItem('💰', 'Оффлайн-продажи', () => router.push('/(tabs)/OfflineSalesScreen'))}
                 {renderMenuItem('⚖️', 'Объявления на модерацию', () => router.push('/(tabs)/AdsScreen'))}

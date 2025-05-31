@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Picker } from '@react-native-picker/picker';
 import { Product } from './models/product.model';
 import api from './api';
 
@@ -69,18 +68,44 @@ const AddEditProductScreen = () => {
     if (!name.trim()) {
       Alert.alert('Ошибка', 'Введите название товара');
       return false;
-    }    if (category === 0) {
+    }
+    
+    if (category === 0) {
       Alert.alert('Ошибка', 'Выберите категорию');
       return false;
     }
+
     if (!price.trim() || isNaN(Number(price)) || Number(price) <= 0) {
       Alert.alert('Ошибка', 'Введите корректную цену');
       return false;
     }
-    if (!stock.trim() || isNaN(Number(stock)) || Number(stock) < 0) {
+
+    // Get the selected category to check if it's weight-based
+    const selectedCategory = categories.find(c => c.id === category);
+    const isWeightCategory = selectedCategory?.name === 'На развес';
+
+    // Validate stock based on category
+    const stockNum = Number(stock);
+    if (!stock.trim() || isNaN(stockNum) || stockNum < 0) {
       Alert.alert('Ошибка', 'Введите корректное количество');
       return false;
     }
+
+    if (isWeightCategory) {
+      // For weight products - check decimals (up to 2 decimal places)
+      const decimalParts = stock.split('.');
+      if (decimalParts.length > 1 && decimalParts[1].length > 2) {
+        Alert.alert('Ошибка', 'Для весового товара укажите вес с точностью до сотых (кг)');
+        return false;
+      }
+    } else {
+      // For unit products - must be integer
+      if (!Number.isInteger(stockNum)) {
+        Alert.alert('Ошибка', 'Для штучного товара укажите целое число');
+        return false;
+      }
+    }
+
     return true;
   };
 
@@ -89,13 +114,21 @@ const AddEditProductScreen = () => {
 
     setSaving(true);
     try {
+      // Get the selected category to check if it's weight-based
+      const selectedCategory = categories.find(c => c.id === category);
+      const isWeightCategory = selectedCategory?.name === 'На развес';
+
+      // Format stock based on category type
+      const stockNum = Number(stock);
+      const formattedStock = isWeightCategory ? Number(stockNum.toFixed(2)) : Math.floor(stockNum);
+
       const productData = {
         name,
         categoryId: category,
         description,
         recommendations,
         price: Number(price),
-        stock: Number(stock),
+        stock: formattedStock,
         active
       };
 
@@ -137,23 +170,41 @@ const AddEditProductScreen = () => {
           value={name}
           onChangeText={setName}
           placeholder="Введите название товара"
-        />
-
-        <Text style={styles.label}>Категория*</Text>
-        <View style={styles.pickerContainer}>
-          <Picker
-            selectedValue={category}
-            onValueChange={(value: number) => setCategory(value)}
-            style={{ height: 50 }}
+        />        <Text style={styles.label}>Категория*</Text>
+        <View style={styles.categoryFilter}>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            style={styles.categoriesContainer}
           >
+            <TouchableOpacity
+              style={[
+                styles.categoryButton,
+                category === 0 && styles.categoryButtonActive
+              ]}
+              onPress={() => setCategory(0)}
+            >
+              <Text style={[
+                styles.categoryButtonText,
+                category === 0 && styles.categoryButtonTextActive
+              ]}>Выберите категорию</Text>
+            </TouchableOpacity>
             {categories.map((cat) => (
-              <Picker.Item 
-                key={cat.id} 
-                label={cat.name} 
-                value={cat.id} 
-              />
+              <TouchableOpacity
+                key={cat.id}
+                style={[
+                  styles.categoryButton,
+                  category === cat.id && styles.categoryButtonActive
+                ]}
+                onPress={() => setCategory(cat.id)}
+              >
+                <Text style={[
+                  styles.categoryButtonText,
+                  category === cat.id && styles.categoryButtonTextActive
+                ]}>{cat.name}</Text>
+              </TouchableOpacity>
             ))}
-          </Picker>
+          </ScrollView>
         </View>
 
         <Text style={styles.label}>Описание</Text>
@@ -185,13 +236,15 @@ const AddEditProductScreen = () => {
           placeholder="Введите цену"
         />
 
-        <Text style={styles.label}>Количество*</Text>
+        <Text style={styles.label}>
+          Количество {categories.find(c => c.id === category)?.name === 'На развес' ? '(кг)' : '(шт)'} *
+        </Text>
         <TextInput
           style={styles.input}
           value={stock}
           onChangeText={setStock}
           keyboardType="decimal-pad"
-          placeholder="Введите количество"
+          placeholder={`Введите количество ${categories.find(c => c.id === category)?.name === 'На развес' ? 'в кг' : 'в штуках'}`}
         />
 
         <View style={styles.switchRow}>
@@ -245,18 +298,36 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     fontSize: 16,
     backgroundColor: '#fff',
-  },
-  textArea: {
+  },  textArea: {
     height: 100,
     textAlignVertical: 'top',
   },
-  pickerContainer: {
+  categoryFilter: {
+    marginBottom: 16,
+  },
+  categoriesContainer: {
+    flexDirection: 'row',
+    paddingVertical: 4,
+  },
+  categoryButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#f0f0f0',
+    marginRight: 8,
     borderWidth: 1,
     borderColor: '#ddd',
-    borderRadius: 8,
-    marginBottom: 16,
-    backgroundColor: '#fff',
-    overflow: 'hidden',
+  },
+  categoryButtonActive: {
+    backgroundColor: '#2196F3',
+    borderColor: '#2196F3',
+  },
+  categoryButtonText: {
+    color: '#666',
+    fontSize: 14,
+  },
+  categoryButtonTextActive: {
+    color: '#fff',
   },
   switchRow: {
     flexDirection: 'row',
