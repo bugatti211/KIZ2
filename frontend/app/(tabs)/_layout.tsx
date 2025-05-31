@@ -170,13 +170,20 @@ export default function TabLayout() {
           title: 'Консультант',
           tabBarIcon: ({ color, size }) => <Ionicons name="chatbubble" size={size} color={color} />,
         }}
-      />
-      <Tab.Screen
+      /><Tab.Screen
         name="cart"
         component={CartScreen}
         options={{
           title: 'Корзина',
           tabBarIcon: ({ color, size }) => <Ionicons name="cart" size={size} color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="orders"
+        component={OrdersScreen}
+        options={{
+          title: 'Заказы',
+          tabBarIcon: ({ color, size }) => <Ionicons name="receipt" size={size} color={color} />,
         }}
       />
       <Tab.Screen
