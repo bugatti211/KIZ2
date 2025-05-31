@@ -8,12 +8,26 @@ export interface DecodedToken {
 }
 
 export const decodeToken = (token: string): DecodedToken | null => {
-  if (!token) return null;
+  if (!token) {
+    console.error('No token provided');
+    return null;
+  }
 
   try {
     // Validate token format
     if (!token.includes('.') || token.split('.').length !== 3) {
       console.error('Invalid token format');
+      return null;
+    }
+
+    // Check for token expiration before trying to decode
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = atob(base64);
+    const payload = JSON.parse(jsonPayload);
+
+    if (payload.exp && Date.now() >= payload.exp * 1000) {
+      console.error('Token has expired');
       return null;
     }
 
@@ -24,7 +38,9 @@ export const decodeToken = (token: string): DecodedToken | null => {
     if (!decoded || typeof decoded !== 'object') {
       console.error('Invalid token payload format');
       return null;
-    }    // Return typed object with decoded values and defaults
+    }
+
+    // Return typed object with decoded values and defaults
     return {
       ...decoded,
       email: decoded.email || '',
