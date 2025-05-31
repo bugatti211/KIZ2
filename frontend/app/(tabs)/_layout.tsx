@@ -8,7 +8,7 @@ import ProfileScreen from './ProfileScreen';
 import CategoryProductsScreen from './CategoryProductsScreen';
 import ProductCardScreen from './ProductCardScreen';
 import ProductManagementScreen from './ProductManagementScreen';
-import AddEditProductScreen from './AddEditProductScreen';
+import AddEditProductScreen from '../AddEditProductScreen';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AdsScreen from './AdsScreen';
 import NewSupplyScreen from './NewSupplyScreen';
@@ -140,33 +140,54 @@ function CatalogStack() {
   );
 }
 
-export default function TabLayout({ setIsAuthenticated }: any) {
+export default function TabLayout() {
   return (
-    <Tab.Navigator
-      initialRouteName="Ads"
-      screenOptions={({ route }) => ({
-        headerShown: route.name !== 'Catalog' && route.name !== 'Profile', // Show headers except for stacks
-        title: getTabTitle(route.name),
-        tabBarIcon: ({ color, size }) => {
-          let iconName = '';
-          switch (route.name) {
-            case 'Ads': iconName = 'megaphone-outline'; break;
-            case 'Catalog': iconName = 'list-outline'; break;
-            case 'Consult': iconName = 'chatbubble-ellipses-outline'; break;
-            case 'Cart': iconName = 'cart-outline'; break;
-            case 'Profile': iconName = 'person-outline'; break;
-            case 'Orders': iconName = 'receipt-outline'; break;
-          }
-          return <Ionicons name={iconName as any} size={size} color={color} />;
-        },
-      })}
-    >
-      <Tab.Screen name="Ads" component={AdsScreen} options={{ title: 'Объявления' }} />
-      <Tab.Screen name="Catalog" component={CatalogStack} options={{ title: 'Каталог' }} />
-      <Tab.Screen name="Consult" component={ConsultScreen} options={{ title: 'Консультация' }} />
-      <Tab.Screen name="Cart" component={CartScreen} options={{ title: 'Корзина' }} />
-      <Tab.Screen name="Orders" component={OrdersScreen} options={{ title: 'Заказы' }} />
-      <Tab.Screen name="Profile" component={ProfileStack} />
+    <Tab.Navigator 
+      initialRouteName="AdsScreen"
+      screenOptions={{
+        tabBarActiveTintColor: '#007AFF',
+      }}>
+      <Tab.Screen
+        name="AdsScreen"
+        component={AdsScreen}
+        options={{
+          title: 'Объявления',
+          tabBarIcon: ({ color, size }) => <Ionicons name="megaphone" size={size} color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="catalog"
+        component={CatalogScreen}
+        options={{
+          title: 'Каталог',
+          tabBarIcon: ({ color, size }) => <Ionicons name="grid" size={size} color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="consult"
+        component={ConsultScreen}
+        options={{
+          title: 'Консультант',
+          tabBarIcon: ({ color, size }) => <Ionicons name="chatbubble" size={size} color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="cart"
+        component={CartScreen}
+        options={{
+          title: 'Корзина',
+          tabBarIcon: ({ color, size }) => <Ionicons name="cart" size={size} color={color} />,
+        }}
+      />
+      <Tab.Screen
+        name="profile"
+        component={ProfileStack}
+        options={{
+          title: 'Профиль',
+          headerShown: false,
+          tabBarIcon: ({ color, size }) => <Ionicons name="person" size={size} color={color} />,
+        }}
+      />
     </Tab.Navigator>
   );
 }

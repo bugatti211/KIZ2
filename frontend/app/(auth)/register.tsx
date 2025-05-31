@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, Alert } from 'react-native';
-import { register } from './authApi';
+import { register } from '../authApi';
 
 export default function RegisterScreen({ navigation }: any) {
   const [name, setName] = useState('');
@@ -13,7 +13,7 @@ export default function RegisterScreen({ navigation }: any) {
     try {
       await register(name, email, password);
       Alert.alert('Успех', 'Регистрация завершена!');
-      navigation.replace('Login');
+      navigation.replace('/(auth)/login');
     } catch (e: any) {
       Alert.alert('Ошибка', e?.response?.data?.error || 'Ошибка регистрации');
     } finally {

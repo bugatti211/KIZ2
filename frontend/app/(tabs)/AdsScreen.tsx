@@ -1,59 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Modal, TouchableOpacity, StyleSheet, Pressable, TextInput, Button, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, StyleSheet, Pressable, FlatList, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import RegisterScreen from '../RegisterScreen';
 import api from '../api';
 import { useIsFocused } from '@react-navigation/native';
-
-function CustomLogin({ onSuccess, onSwitch }: { onSuccess: () => void; onSwitch: () => void }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  const handleLogin = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const { login } = require('../authApi');
-      const data = await login(email, password);
-      await AsyncStorage.setItem('token', data.token);
-      onSuccess();
-    } catch (e: any) {
-      setError(e.message || 'Ошибка входа');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <View style={{ width: '100%' }}>
-      <Text style={{ fontSize: 20, marginBottom: 16, textAlign: 'center' }}>Вход в аккаунт</Text>
-      <TextInput
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        style={{ borderWidth: 1, marginBottom: 10, padding: 10, borderRadius: 8, fontSize: 16, width: '100%' }}
-      />
-      <TextInput
-        placeholder="Пароль"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        style={{ borderWidth: 1, marginBottom: 16, padding: 10, borderRadius: 8, fontSize: 16, width: '100%' }}
-      />
-      {!!error && <Text style={{ color: 'red', marginBottom: 8, textAlign: 'center' }}>{error}</Text>}
-      <Button title={loading ? 'Вход...' : 'Войти'} onPress={handleLogin} disabled={loading} />
-      <TouchableOpacity onPress={onSwitch} style={{ marginTop: 14, alignItems: 'center' }}>
-        <Text style={{ color: '#007AFF', fontSize: 16 }}>Нет аккаунта? Зарегистрироваться</Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
+import { useRouter } from 'expo-router';
 
 export default function AdsScreen() {
+  const router = useRouter();
   const [showAuth, setShowAuth] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [isAuthChecked, setIsAuthChecked] = useState(false);
@@ -119,8 +72,7 @@ export default function AdsScreen() {
             </View>
           )}
         />
-      )}
-      <Modal visible={showAuth} animationType="fade" transparent>
+      )}      <Modal visible={showAuth} animationType="fade" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
@@ -128,17 +80,25 @@ export default function AdsScreen() {
               <Pressable onPress={() => setShowAuth(false)} style={styles.closeButton}>
                 <Text style={styles.closeButtonText}>×</Text>
               </Pressable>
-            </View>
-            {authMode === 'login' ? (
-              <CustomLogin onSuccess={() => setShowAuth(false)} onSwitch={() => setAuthMode('register')} />
-            ) : (
-              <>
-                <RegisterScreen navigation={{ replace: () => setAuthMode('login'), navigate: () => setAuthMode('login') }} />
-                <TouchableOpacity onPress={() => setAuthMode('login')} style={styles.switchLink}>
-                  <Text style={styles.switchLinkText}>Уже есть аккаунт? Войти</Text>
-                </TouchableOpacity>
-              </>
-            )}
+            </View>              <TouchableOpacity 
+              onPress={() => {
+                setShowAuth(false);
+                router.push("/(auth)/login");
+              }}
+              style={styles.authButton}
+            >
+              <Text style={styles.authButtonText}>Войти</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              onPress={() => {
+                setShowAuth(false);
+                router.push("/(auth)/register");
+              }}
+              style={[styles.authButton, styles.registerButton]}
+            >
+              <Text style={styles.authButtonText}>Зарегистрироваться</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -152,6 +112,21 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  authButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+    marginVertical: 8,
+  },
+  registerButton: {
+    backgroundColor: '#4CAF50',
+  },
+  authButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   modalContent: {
     backgroundColor: '#fff',

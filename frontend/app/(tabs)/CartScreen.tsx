@@ -344,9 +344,9 @@ export default function CartScreen() {
   const handleRemoveFromCart = useCallback(async (productId: number) => {
     await removeFromCart(productId);
   }, [removeFromCart]);
-
   // Memoize the cart items to prevent unnecessary re-renders
   const cartItems = useMemo(() => {
+    if (!items) return [];
     return items.map(item => (
       <CartItem
         key={item.id}
@@ -477,8 +477,7 @@ export default function CartScreen() {
       </View>
     );
   }
-
-  if (items.length === 0) {
+  if (!items || items.length === 0) {
     return (
       <View style={styles.emptyContainer}>
         <Ionicons name="cart-outline" size={64} color="#ccc" />

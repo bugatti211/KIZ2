@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { login } from './authApi';
+import { login } from '../authApi';
 
 export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState('');
@@ -14,7 +14,7 @@ export default function LoginScreen({ navigation }: any) {
       const data = await login(email, password);
       await AsyncStorage.setItem('token', data.token);
       Alert.alert('Успех', 'Вход выполнен!');
-      navigation.replace('Users');
+      navigation.replace('/(tabs)');
     } catch (e: any) {
       Alert.alert('Ошибка', e.message || 'Ошибка входа');
     } finally {
