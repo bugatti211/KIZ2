@@ -21,11 +21,19 @@ interface SupplyItem {
   product: Product;
 }
 
+interface SupplyData {
+  code: string;
+  supplier: string;
+  items: Array<{ productId: number; quantity: number; }>;
+}
+
 export default function NewSupplyScreen() {
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<SupplyItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [supplyCode, setSupplyCode] = useState('');
+  const [supplier, setSupplier] = useState('');
   const navigation = useNavigation();
 
   // Set up header back button without label
@@ -107,6 +115,8 @@ export default function NewSupplyScreen() {
 
     try {
       await api.post('/supplies', {
+        code: supplyCode,
+        supplier,
         items: selectedProducts.map(item => ({
           productId: item.productId,
           quantity: item.quantity
@@ -141,6 +151,21 @@ export default function NewSupplyScreen() {
         placeholder="Поиск товаров..."
         value={searchQuery}
         onChangeText={setSearchQuery}
+      />
+
+      {/* Данные о поставке */}
+      <Text style={styles.sectionTitle}>Данные о поставке</Text>
+      <TextInput
+        style={styles.supplyInput}
+        placeholder="Номер поставки"
+        value={supplyCode}
+        onChangeText={setSupplyCode}
+      />
+      <TextInput
+        style={styles.supplyInput}
+        placeholder="Поставщик"
+        value={supplier}
+        onChangeText={setSupplier}
       />
 
       {/* Список выбранных товаров */}
@@ -228,6 +253,14 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     marginBottom: 16,
+    fontSize: 16,
+  },
+  supplyInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
     fontSize: 16,
   },
   selectedProductsContainer: {

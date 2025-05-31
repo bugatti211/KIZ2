@@ -18,6 +18,8 @@ import api from '../api';
 interface Supply {
   id: number;
   date: string;
+  code: string;
+  supplier: string;
   items: {
     id: number;
     quantity: number;
@@ -118,6 +120,12 @@ export default function SupplyHistoryScreen() {
             <Text style={styles.supplyDate}>
               {formatDate(item.date)}
             </Text>
+            <Text style={styles.supplyCode}>
+              Номер поставки: {item.code}
+            </Text>
+            <Text style={styles.supplySupplier}>
+              Поставщик: {item.supplier}
+            </Text>
             <Text style={styles.totalItems}>
               Товаров в поставке: {item.items.length}
             </Text>
@@ -144,6 +152,13 @@ export default function SupplyHistoryScreen() {
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>
               Детали поставки от {selectedSupply ? formatDate(selectedSupply.date) : ''}
+            </Text>
+            
+            <Text style={styles.supplyCode}>
+              Номер поставки: {selectedSupply?.code}
+            </Text>
+            <Text style={styles.supplySupplier}>
+              Поставщик: {selectedSupply?.supplier}
             </Text>
             
             <ScrollView style={styles.modalScroll}>
@@ -196,6 +211,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 8,
+  },
+  supplyCode: {
+    fontSize: 14,
+    color: '#2196F3',
+    marginBottom: 4,
+  },
+  supplySupplier: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
   },
   totalItems: {
     fontSize: 14,

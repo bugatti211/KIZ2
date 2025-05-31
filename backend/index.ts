@@ -353,14 +353,25 @@ app.delete('/products/:id', asyncHandler(async (req: Request, res: Response) => 
 }));
 
 // Endpoints для поставок
-app.post('/supplies', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
-  const { items } = req.body;
+app.post('/supplies', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {  const { items, code, supplier } = req.body;
   
   if (!items || !Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ error: 'Необходимо указать товары для поставки' });
   }
 
-  const supply = await Supply.create({});
+  if (!code) {
+    return res.status(400).json({ error: 'Необходимо указать номер поставки' });
+  }
+
+  if (!supplier) {
+    return res.status(400).json({ error: 'Необходимо указать поставщика' });
+  }
+
+  const supply = await Supply.create({ 
+    code,
+    supplier,
+    date: new Date()
+  });
 
   try {
     // Создаем записи о поставке и обновляем количество товаров

@@ -9,8 +9,7 @@ export class Supply extends Model {
   public items?: SupplyItem[]; // Add relation type
 }
 
-Supply.init(
-  {
+Supply.init(  {
     id: {
       type: DataTypes.INTEGER,
       autoIncrement: true,
@@ -20,6 +19,14 @@ Supply.init(
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
+    },
+    code: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    supplier: {
+      type: DataTypes.STRING,
+      allowNull: false,
     },
   },
   {
