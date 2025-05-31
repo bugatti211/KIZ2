@@ -18,23 +18,37 @@ interface ProfileUser {
   address?: string;
 }
 
-export default function ProfileScreen({ setIsAuthenticated, navigation, route }: ProfileScreenProps) {
+export default function ProfileScreen({ setIsAuthenticated, navigation, route }: ProfileScreenProps): React.JSX.Element {
+  // Common state
   const [showCreate, setShowCreate] = useState(false);
   const [showSupplyModal, setShowSupplyModal] = useState(false);
+  const [showPersonalInfo, setShowPersonalInfo] = useState(false);
+  const [showModeration, setShowModeration] = useState(false);
+  const [showEmployeeRegistration, setShowEmployeeRegistration] = useState(false);
+  
+  // User and auth state
+  const [user, setUser] = useState<ProfileUser | null>(null);
+  const { setShowAuthModal, setAuthMode, showAuthModal } = useAuthModal();
+  
+  // Personal info state
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editAddress, setEditAddress] = useState('');
+  const [saving, setSaving] = useState(false);
+  
+  // Employee registration state
+  const [employeeName, setEmployeeName] = useState('');
+  const [employeeEmail, setEmployeeEmail] = useState('');
+  const [employeePassword, setEmployeePassword] = useState('');
+  const [employeeError, setEmployeeError] = useState('');
+  
+  // Ad state
   const [adText, setAdText] = useState('');
   const [adPhone, setAdPhone] = useState('');
   const [ads, setAds] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [showModeration, setShowModeration] = useState(false);
-  const [user, setUser] = useState<ProfileUser | null>(null);
-  const { setShowAuthModal, setAuthMode, showAuthModal } = useAuthModal();
-  const [showPersonalInfo, setShowPersonalInfo] = useState(false);
-  const [editName, setEditName] = useState('');
-  const [editEmail, setEditEmail] = useState('');
-  const [editAddress, setEditAddress] = useState('');
-  const [saving, setSaving] = useState(false);
 
   // --- ТОВАРЫ ---
   // Тип товара
@@ -376,19 +390,37 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
       width: '80%',
     },
     button: {
-      borderRadius: 10,
-      padding: 10,
-      elevation: 2,
+      backgroundColor: '#2196F3',
+      borderRadius: 8,
+      padding: 12,
+      alignItems: 'center',
+      marginBottom: 8,
       width: '100%',
-      marginBottom: 10,
+      elevation: 1,
+      shadowColor: '#000',
+      shadowOpacity: 0.2,
+      shadowRadius: 4,
+      shadowOffset: { width: 0, height: 1 },
     },
-    closeButton: {
-      backgroundColor: '#e53935',
+    buttonSecondary: {
+      backgroundColor: '#e0e0e0',
+    },
+    buttonDisabled: {
+      backgroundColor: '#ccc',
+      opacity: 0.7,
     },
     buttonText: {
-      color: 'white',
-      fontWeight: 'bold',
-      textAlign: 'center',
+      color: '#fff',
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    errorText: {
+      color: 'red',
+      marginBottom: 8,
+      fontSize: 14,
+    },
+    closeButton: {
+      backgroundColor: '#e0e0e0',
     },
   });
 
@@ -451,6 +483,45 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
       </View>
     </Modal>
   );
+
+  // Функция для регистрации сотрудника
+  const handleEmployeeRegistration = async () => {
+    setEmployeeError('');
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(employeeEmail)) {
+      setEmployeeError('Пожалуйста, введите корректный email адрес');
+      return;
+    }
+
+    // Validate password length
+    if (employeePassword.length < 6) {
+      setEmployeeError('Пароль должен содержать минимум 6 символов');
+      return;
+    }
+
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) throw new Error('Требуется авторизация');
+      
+      await api.post('/users/register-employee', {
+        name: employeeName,
+        email: employeeEmail,
+        password: employeePassword,
+        role: 'employee'
+      });
+      
+      // Очистить форму и закрыть модальное окно
+      setShowEmployeeRegistration(false);
+      setEmployeeName('');
+      setEmployeeEmail('');
+      setEmployeePassword('');
+    } catch (e: any) {
+      setEmployeeError(e.message || 'Ошибка при регистрации сотрудника');
+    }
+  };
+
   return (
     <ScrollView style={styles.container}>
       {/* User Profile Card */}
@@ -465,10 +536,10 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
 
       {/* Menu Items */}
       {renderMenuItem('👤', 'Личная информация', () => setShowPersonalInfo(true))}
-      {renderMenuItem('📝', 'Создать объявление', () => setShowCreate(true))}
-      {renderMenuItem('⚖️', 'Объявления на модерацию', () => setShowModeration(true))}
+      {renderMenuItem('📝', 'Создать объявление', () => setShowCreate(true))}      {renderMenuItem('⚖️', 'Объявления на модерацию', () => setShowModeration(true))}
       {renderMenuItem('🛍️', 'Управление товарами', () => navigation.navigate('ProductManagementScreen'))}
       {renderMenuItem('📦', 'Поставки', () => setShowSupplyModal(true))}
+      {renderMenuItem('👥', 'Регистрация сотрудника', () => setShowEmployeeRegistration(true))}
       {renderMenuItem('💰', 'Оффлайн-продажи', () => navigation.navigate('OfflineSalesScreen'))}
       
       {/* Auth Button */}
@@ -564,8 +635,7 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
         </View>
       </Modal>
 
-      {/* Moderation Modal */}
-      <Modal visible={showModeration} animationType="slide" transparent>
+      {/* Moderation Modal */}      <Modal visible={showModeration} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { maxHeight: '80%' }]}>
             <Text style={styles.modalTitle}>Объявления на модерацию</Text>
@@ -604,6 +674,63 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
 
       {/* Supply Modal */}
       <SupplyModal />
+
+      {/* Employee Registration Modal */}
+      <Modal visible={showEmployeeRegistration} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Регистрация сотрудника</Text>
+            
+            {employeeError ? (
+              <Text style={{ color: 'red', marginBottom: 8 }}>{employeeError}</Text>
+            ) : null}
+            
+            <TextInput
+              value={employeeName}
+              onChangeText={setEmployeeName}
+              style={styles.input}
+              placeholder="Имя сотрудника"
+            />
+            <TextInput
+              value={employeeEmail}
+              onChangeText={setEmployeeEmail}
+              style={styles.input}
+              placeholder="Email сотрудника"
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+            <TextInput
+              value={employeePassword}
+              onChangeText={setEmployeePassword}
+              style={styles.input}
+              placeholder="Пароль"
+              secureTextEntry
+            />
+            <TouchableOpacity
+              style={[
+                styles.button,
+                (!employeeName || !employeeEmail || !employeePassword) && styles.buttonDisabled
+              ]}
+              disabled={!employeeName || !employeeEmail || !employeePassword}
+              onPress={handleEmployeeRegistration}
+            >
+              <Text style={styles.buttonText}>Зарегистрировать</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.button, styles.buttonSecondary]}
+              onPress={() => {
+                setShowEmployeeRegistration(false);
+                setEmployeeName('');
+                setEmployeeEmail('');
+                setEmployeePassword('');
+                setEmployeeError('');
+              }}
+            >
+              <Text style={[styles.buttonText, { color: '#666' }]}>Отмена</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
