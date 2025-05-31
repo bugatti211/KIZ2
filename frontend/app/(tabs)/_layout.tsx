@@ -144,13 +144,21 @@ function CatalogStack() {
 
 export default function TabLayout() {
   const [isAdmin, setIsAdmin] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
 
   const checkAdminStatus = useCallback(async () => {
     try {
-      const token = await AsyncStorage.getItem('token');
-      if (token) {
-        const tokenData = JSON.parse(atob(token.split('.')[1]));
-        setIsAdmin(tokenData.role === 'admin');
+      const currentToken = await AsyncStorage.getItem('token');
+      setToken(currentToken);
+      
+      if (currentToken) {
+        try {
+          const tokenData = JSON.parse(atob(currentToken.split('.')[1]));
+          setIsAdmin(tokenData.role === 'admin');
+        } catch (e) {
+          console.error('Error parsing token:', e);
+          setIsAdmin(false);
+        }
       } else {
         setIsAdmin(false);
       }
@@ -160,12 +168,17 @@ export default function TabLayout() {
     }
   }, []);
 
-  // Проверяем статус при монтировании компонента
+  // Проверяем статус при монтировании и при изменении токена
   useEffect(() => {
     checkAdminStatus();
-  }, [checkAdminStatus]);
+  }, [checkAdminStatus, token]);
+
   // Добавляем слушатель изменений токена через EventEmitter
   useEffect(() => {
+    // Немедленно проверяем статус при монтировании
+    checkAdminStatus();
+    
+    // Подписываемся на события изменения токена
     authEvents.on(AUTH_EVENTS.TOKEN_CHANGE, checkAdminStatus);
 
     return () => {

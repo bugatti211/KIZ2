@@ -419,7 +419,10 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
       if (setIsAuthenticated) {
         setIsAuthenticated(false);
       }
-      router.push('/(auth)/login');
+      // Оповещаем о смене токена
+      authEvents.emit(AUTH_EVENTS.TOKEN_CHANGE);
+      // Перенаправляем на главный экран
+      router.replace('/(tabs)/AdsScreen');
     } catch (e) {
       console.error('Error during logout:', e);
     }
