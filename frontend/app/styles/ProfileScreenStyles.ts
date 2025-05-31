@@ -69,18 +69,26 @@ export const styles = StyleSheet.create({
   },
 
   // Modal styles
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginTop: 20,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-  },  modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
-    width: '92%',
+    padding: 20,
+  },
+  modalView: {
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 35,
+    width: '100%',
     maxWidth: 400,
-    elevation: 6,
+    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -88,17 +96,23 @@ export const styles = StyleSheet.create({
     },
     shadowOpacity: 0.25,
     shadowRadius: 4,
+    elevation: 5,
   },
-  modalView: {
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 35,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    color: '#333',
+    textAlign: 'center',
+  },
+  input: {
+    width: '100%',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    fontSize: 16,
   },
 
   // Role selection styles
@@ -132,20 +146,7 @@ export const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 8,
     color: '#333',
-  },
-
-  // Text styles
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 15,
-    color: '#333',
-  },
-  menuItemText: {
-    fontSize: 16,
-    color: '#333',
-    flex: 1,
-  },
+  },  // Text styles
   menuText: {
     fontSize: 16,
     color: '#333',
@@ -159,7 +160,7 @@ export const styles = StyleSheet.create({
   buttonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: 'bold',
   },
   sectionTitle: {
     fontSize: 18,
@@ -187,53 +188,26 @@ export const styles = StyleSheet.create({
   // Icon and button styles
   menuIcon: {
     fontSize: 24,
-    marginRight: 12,
-  },
-  button: {
-    backgroundColor: '#2196F3',
+    marginRight: 16,
+  },  button: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
     borderRadius: 8,
-    padding: 12,
+    minWidth: 120,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
-    width: '100%',
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
+    marginHorizontal: 8,
   },
-  buttonSecondary: {
-    backgroundColor: '#e0e0e0',
-  },
-  buttonDisabled: {
-    backgroundColor: '#ccc',
-    opacity: 0.7,
-  },
-  approveBtn: {
-    backgroundColor: '#4caf50',
-    padding: 8,
-    borderRadius: 6,
-    marginRight: 10,
-  },
-  rejectBtn: {
-    backgroundColor: '#e53935',
-    padding: 8,
-    borderRadius: 6,
+  saveButton: {
+    backgroundColor: '#4CAF50',
+    flex: 1,
+    marginRight: 8,
   },
   closeButton: {
-    backgroundColor: '#e0e0e0',
-  },
-
-  // Input styles
-  input: {
-    borderWidth: 1.5,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    fontSize: 16,
-    backgroundColor: '#fff',
-  },
+    backgroundColor: '#f44336',
+    flex: 1,
+    marginLeft: 8,
+  },  // Input styles
   picker: {
     height: 50,
     marginHorizontal: -8,
@@ -256,7 +230,7 @@ export const styles = StyleSheet.create({
   },
   supplyButton: {
     backgroundColor: '#2196F3',
-    marginVertical: 5,
+    marginBottom: 12,
     width: '100%',
   },
 
@@ -268,10 +242,10 @@ export const styles = StyleSheet.create({
   // Welcome screen styles
   welcomeContainer: {
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
-    marginVertical: 32,
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 40,
   },
   welcomeTitle: {
     fontSize: 28,
@@ -281,23 +255,18 @@ export const styles = StyleSheet.create({
     textAlign: 'center',
   },
   welcomeText: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: 18,
     textAlign: 'center',
     marginBottom: 32,
+    color: '#666',
     lineHeight: 24,
   },
   authButton: {
     width: '100%',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
+    paddingVertical: 14,
+    borderRadius: 8,
     marginBottom: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
+    alignItems: 'center',
   },
   loginButton: {
     backgroundColor: '#2196F3',
@@ -307,7 +276,45 @@ export const styles = StyleSheet.create({
   },
   authButtonText: {
     color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+
+  // User profile styles
+  profileContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 20,
+    alignItems: 'center',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  name: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  email: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 8,
+  },
+  role: {
+    fontSize: 14,
+    color: '#888',
+    marginBottom: 16,
+    textTransform: 'capitalize',
+  },
+
+  // Menu styles
+  menuContainer: {
+    backgroundColor: 'transparent',
+    padding: 16,
+    marginTop: 8,
   },
 });

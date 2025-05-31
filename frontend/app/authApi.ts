@@ -1,8 +1,18 @@
 import api from './api';
 
 export async function register(name: string, email: string, password: string) {
-  const res = await api.post('/register', { name, email, password });
-  return res.data;
+  try {
+    const res = await api.post('/register', { name, email, password });
+    return res.data;
+  } catch (error: any) {
+    if (error.response) {
+      throw new Error(error.response.data?.error || 'Ошибка регистрации');
+    } else if (error.request) {
+      throw new Error('Нет ответа от сервера. Проверьте подключение к интернету.');
+    } else {
+      throw new Error(error.message || 'Неизвестная ошибка');
+    }
+  }
 }
 
 export async function login(email: string, password: string) {

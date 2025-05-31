@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Button, TextInput, FlatList, Modal, TouchableOpacity, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, Button, TextInput, FlatList, Modal, TouchableOpacity, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform, Image } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../api';
 import { useAuthModal } from '../AuthContext';
 import { styles } from '../styles/ProfileScreenStyles';
 import { useRouter } from 'expo-router';
 import { authEvents, AUTH_EVENTS } from '../events';
+import { decodeToken } from '../utils/tokenUtils';
 
 interface ProfileUser {
   id: number;
@@ -104,9 +105,7 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
     } finally {
       setLoading(false);
     }
-  };
-
-  // Получить данные пользователя
+  };  // Получить данные пользователя
   const fetchUser = async () => {
     try {
       const token = await AsyncStorage.getItem('token');
@@ -114,15 +113,24 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
         setUser(null);
         return;
       }
+
       const res = await api.get('/users');
-      // Найти пользователя по email из токена
-      const tokenPayload = JSON.parse(atob(token.split('.')[1]));
-      const currentUser = res.data.find((u: ProfileUser) => u.email === tokenPayload.email);
+      const decodedToken = decodeToken(token);
+      
+      if (!decodedToken) {
+        console.error('Invalid token');
+        setUser(null);
+        await AsyncStorage.removeItem('token');
+        return;
+      }
+
+      const currentUser = res.data.find((u: ProfileUser) => u.email === decodedToken.email);
       // Если нет address, подставить пустую строку для корректной работы формы
       setUser(currentUser ? { ...currentUser, address: currentUser.address || '' } : null);
     } catch (e) {
       console.error('Error fetching user:', e);
       setUser(null);
+      await AsyncStorage.removeItem('token');
     }
   };
 
@@ -261,24 +269,24 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
   };
 
   const renderMenuItem = (icon: string, title: string, onPress: () => void, backgroundColor?: string) => {
-    // For unauthorized users, only show login and register buttons
-    if (!user && title !== 'Войти' && title !== 'Зарегистрироваться') {
+    // Для неавторизованных пользователей скрываем все пункты меню
+    if (!user) {
       return null;
     }
     
-    // For authorized users, check role-based permissions
+    // Проверяем права доступа на основе роли пользователя
     if (user) {
-      // Only show employee registration for admin
+      // Только для админа
       if (title === 'Регистрация сотрудника' && user.role !== 'admin') {
         return null;
       }
       
-      // Only show moderation for admin
+      // Только для админа
       if (title === 'Объявления на модерацию' && user.role !== 'admin') {
         return null;
       }
       
-      // Only show product management and supply features for admin and sellers
+      // Только для админа и продавцов
       if ((title === 'Управление товарами' || title === 'Поставки' || title === 'Оффлайн-продажи') 
           && user.role !== 'admin' && user.role !== 'Продавец') {
         return null;
@@ -381,6 +389,17 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
     } catch (e: any) {
       setEmployeeError(e.message || 'Ошибка при регистрации сотрудника');
     }
+  };  const handleLogout = async () => {
+    try {
+      await AsyncStorage.removeItem('token');
+      setUser(null);
+      if (setIsAuthenticated) {
+        setIsAuthenticated(false);
+      }
+      router.push('/(auth)/login');
+    } catch (e) {
+      console.error('Error during logout:', e);
+    }
   };
 
   const handleLogin = () => {
@@ -393,279 +412,101 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
 
   return (
     <ScrollView style={styles.container}>
-      {/* Welcome Message for Unauthorized Users */}
-      {!user && (
+      {/* Модальное окно редактирования личных данных */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={showPersonalInfo}
+        onRequestClose={() => setShowPersonalInfo(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalView}>
+            <Text style={styles.modalTitle}>Личные данные</Text>
+            
+            <TextInput
+              style={styles.input}
+              placeholder="Имя"
+              value={editName}
+              onChangeText={setEditName}
+            />
+            
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              value={editEmail}
+              onChangeText={setEditEmail}
+              keyboardType="email-address"
+            />
+            
+            <TextInput
+              style={styles.input}
+              placeholder="Адрес"
+              value={editAddress}
+              onChangeText={setEditAddress}
+              multiline
+            />
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.button, styles.saveButton]}
+                onPress={handleSavePersonalInfo}
+                disabled={saving}
+              >
+                {saving ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.buttonText}>Сохранить</Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.button, styles.closeButton]}
+                onPress={() => setShowPersonalInfo(false)}
+              >
+                <Text style={styles.buttonText}>Отмена</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {user ? (
+        <>
+          {/* Профиль пользователя */}          <View style={styles.profileContainer}>
+            <Text style={styles.name}>{user.name}</Text>
+            <Text style={styles.email}>{user.email}</Text>
+            <Text style={styles.role}>{user.role}</Text>
+          </View>{/* Меню действий */}
+          <View style={styles.menuContainer}>
+            {renderMenuItem('👤', 'Личные данные', () => setShowPersonalInfo(true))}
+            {renderMenuItem('🛍️', 'Мои заказы', () => router.push('/(tabs)/OrdersScreen'))}
+            {renderMenuItem('📦', 'Управление товарами', () => router.push('/(tabs)/ProductManagementScreen'))}
+            {renderMenuItem('📋', 'Поставки', () => setShowSupplyModal(true))}
+            {renderMenuItem('💰', 'Оффлайн-продажи', () => router.push('/(tabs)/OfflineSalesScreen'))}
+            {renderMenuItem('⚖️', 'Объявления на модерацию', () => router.push('/(tabs)/AdsScreen'))}
+            {renderMenuItem('👥', 'Регистрация сотрудника', () => router.push('/(auth)/register'))}
+            {renderMenuItem('🚪', 'Выйти', handleLogout, '#FFE5E5')}
+          </View>
+        </>
+      ) : (
+        // Контент для неавторизованных пользователей
         <View style={styles.welcomeContainer}>
-          <Text style={styles.welcomeTitle}>Добро пожаловать!</Text>
           <Text style={styles.welcomeText}>
-            Войдите в аккаунт или зарегистрируйтесь, чтобы получить доступ ко всем функциям приложения
-          </Text>
-          <TouchableOpacity 
-            style={[styles.authButton, styles.loginButton]}
-            onPress={handleLogin}
+            Добро пожаловать! Войдите или зарегистрируйтесь, чтобы получить доступ к личному кабинету.
+          </Text>          <TouchableOpacity 
+            style={[styles.authButton, { backgroundColor: '#4A90E2' }]}
+            onPress={() => router.push('/(auth)/login')}
           >
             <Text style={styles.authButtonText}>Войти</Text>
           </TouchableOpacity>
           <TouchableOpacity 
-            style={[styles.authButton, styles.registerButton]}
-            onPress={handleRegister}
+            style={[styles.authButton, { backgroundColor: '#4CAF50' }]}
+            onPress={() => router.push('/(auth)/register')}
           >
             <Text style={styles.authButtonText}>Зарегистрироваться</Text>
           </TouchableOpacity>
         </View>
       )}
-
-      {/* Authorized User Content */}
-      {user && (
-        <>
-          <View style={styles.userCard}>
-            <Text style={styles.userName}>{user.name || 'Пользователь'}</Text>
-            <Text style={styles.userEmail}>{user.email}</Text>
-          </View>
-
-          {/* Menu Items */}
-          {renderMenuItem('👤', 'Личная информация', () => setShowPersonalInfo(true))}
-          {renderMenuItem('📝', 'Создать объявление', () => setShowCreate(true))}
-          {renderMenuItem('⚖️', 'Объявления на модерацию', () => setShowModeration(true))}
-          {renderMenuItem('🛍️', 'Управление товарами', () => navigation.navigate('ProductManagementScreen'))}
-          {renderMenuItem('📦', 'Поставки', () => setShowSupplyModal(true))}
-          {renderMenuItem('👥', 'Регистрация сотрудника', () => setShowEmployeeRegistration(true))}
-          {renderMenuItem('💰', 'Оффлайн-продажи', () => navigation.navigate('OfflineSalesScreen'))}            {renderMenuItem('🚪', 'Выйти', async () => {
-            await AsyncStorage.removeItem('token');
-            authEvents.emit(AUTH_EVENTS.TOKEN_CHANGE, null);
-            setUser(null);
-            setShowAuthModal(true);
-            setAuthMode('login');
-            if (setIsAuthenticated) setIsAuthenticated(false);
-          }, '#ffebee')}
-        </>
-      )}
-
-      {/* Modals */}
-      {/* Personal Info Modal */}
-      <Modal visible={showPersonalInfo} animationType="slide" transparent>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.flexOne}
-        >
-          <View style={styles.modalOverlay}>
-            <ScrollView style={styles.fullWidth}>
-              <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Личная информация</Text>
-                <TextInput
-                  value={editName}
-                  onChangeText={setEditName}
-                  style={styles.input}
-                  placeholder="Имя"
-                  autoCapitalize="words"
-                  autoCorrect={false}
-                  editable={true}
-                />
-                <TextInput
-                  value={editEmail}
-                  onChangeText={setEditEmail}
-                  style={styles.input}
-                  placeholder="Email"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  editable={true}
-                />
-                <TextInput
-                  value={editAddress}
-                  onChangeText={setEditAddress}
-                  style={styles.input}
-                  placeholder="Адрес"
-                  autoCapitalize="sentences"
-                  autoCorrect={false}
-                  editable={true}
-                />
-                <Button
-                  title={saving ? 'Сохранение...' : 'Сохранить'}
-                  onPress={handleSavePersonalInfo}
-                  disabled={saving}
-                />
-                <Button
-                  title="Отмена"
-                  onPress={() => setShowPersonalInfo(false)}
-                />
-              </View>
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* Employee Registration Modal */}      <Modal visible={showEmployeeRegistration} animationType="slide" transparent>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.flexOne}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <ScrollView style={styles.fullWidth}>
-                <Text style={styles.modalTitle}>Регистрация сотрудника</Text>
-                
-                {employeeError ? (
-                  <Text style={styles.errorText}>{employeeError}</Text>
-                ) : null}
-                
-                <TextInput
-                  value={employeeName}
-                  onChangeText={setEmployeeName}
-                  style={styles.input}
-                  placeholder="Имя сотрудника"
-                  autoCapitalize="words"
-                  autoCorrect={false}
-                  editable={true}
-                />
-                <TextInput
-                  value={employeeEmail}
-                  onChangeText={setEmployeeEmail}
-                  style={styles.input}
-                  placeholder="Email сотрудника"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  editable={true}
-                />                <TextInput
-                  value={employeePassword}
-                  onChangeText={setEmployeePassword}
-                  style={styles.input}
-                  placeholder="Пароль"
-                  secureTextEntry
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  editable={true}
-                />
-                <Text style={styles.label}>Выберите роль:</Text>
-                <View style={styles.roleButtons}>
-                  {['Продавец', 'Бухгалтер', 'Грузчик'].map((role) => (
-                    <TouchableOpacity
-                      key={role}
-                      style={[
-                        styles.roleButton,
-                        employeeRole === role && styles.roleButtonSelected
-                      ]}
-                      onPress={() => setEmployeeRole(role)}
-                    >
-                      <Text style={[
-                        styles.roleButtonText,
-                        employeeRole === role && styles.roleButtonTextSelected
-                      ]}>
-                        {role}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-                <TouchableOpacity
-                  style={[
-                    styles.button,
-                    (!employeeName || !employeeEmail || !employeePassword || !employeeRole) && styles.buttonDisabled
-                  ]}
-                  disabled={!employeeName || !employeeEmail || !employeePassword || !employeeRole}
-                  onPress={handleEmployeeRegistration}
-                >
-                  <Text style={styles.buttonText}>Зарегистрировать</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.button, styles.buttonSecondary]}
-                  onPress={() => {
-                    setShowEmployeeRegistration(false);
-                    setEmployeeName('');
-                    setEmployeeEmail('');
-                    setEmployeePassword('');
-                    setEmployeeError('');
-                  }}
-                >
-                  <Text style={[styles.buttonText, { color: '#666' }]}>Отмена</Text>
-                </TouchableOpacity>
-              </ScrollView>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* Create Ad Modal */}
-      <Modal visible={showCreate} animationType="slide" transparent>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={{ flex: 1 }}
-        >
-          <View style={styles.modalOverlay}>
-            <ScrollView style={{ width: '100%' }}>
-              <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Создать объявление</Text>
-                <TextInput
-                  value={adText}
-                  onChangeText={setAdText}
-                  placeholder="Текст объявления"
-                  multiline
-                  style={styles.input}
-                  autoCapitalize="sentences"
-                  autoCorrect={true}
-                  editable={true}
-                />
-                <TextInput
-                  placeholder="Номер телефона"
-                  value={adPhone}
-                  onChangeText={setAdPhone}
-                  keyboardType="phone-pad"
-                  style={styles.input}
-                  autoCorrect={false}
-                  editable={true}
-                />                {!!error && <Text style={styles.errorText}>{error}</Text>}
-                <Button
-                  title={submitting ? 'Отправка...' : 'Отправить на утверждение'}
-                  onPress={handleCreate}
-                  disabled={submitting}
-                />
-                <Button
-                  title="Отмена"
-                  onPress={() => setShowCreate(false)}
-                />
-              </View>
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* Moderation Modal */}      <Modal visible={showModeration} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>          <View style={[styles.modalContent, styles.maxHeightContent]}>
-            <Text style={styles.modalTitle}>Объявления на модерацию</Text>
-            {loading ? (
-              <ActivityIndicator />
-            ) : (
-              <FlatList
-                data={ads}
-                keyExtractor={(item: any) => item.id.toString()}
-                renderItem={({ item }: { item: any }) => (
-                  <View style={styles.adBlock}>                    <Text style={styles.boldText}>{item.text}</Text>
-                    <Text>Телефон: {item.phone}</Text>
-                    <View style={styles.spacedRow}>
-                      <TouchableOpacity
-                        style={styles.approveBtn}
-                        onPress={() => handleApprove(item.id)}
-                      >                    <Text style={styles.whiteText}>Утвердить</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.rejectBtn}
-                        onPress={() => handleReject(item.id)}
-                      >
-                        <Text style={styles.whiteText}>Отменить</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                )}
-              />
-            )}
-            <Button title="Закрыть" onPress={() => setShowModeration(false)} />
-          </View>
-        </View>
-      </Modal>
-
-      {/* Supply Modal */}
-      <SupplyModal />
-
     </ScrollView>
   );
 }
