@@ -414,15 +414,22 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
     }
   };  const handleLogout = async () => {
     try {
+      // Remove token first to prevent race conditions
       await AsyncStorage.removeItem('token');
+      
+      // Reset user state
       setUser(null);
       if (setIsAuthenticated) {
         setIsAuthenticated(false);
       }
-      // Оповещаем о смене токена
+      
+      // Emit token change event to update all components that depend on auth status
       authEvents.emit(AUTH_EVENTS.TOKEN_CHANGE);
-      // Перенаправляем на главный экран
-      router.replace('/(tabs)/AdsScreen');
+      
+      // Navigate using replace to prevent back navigation after logout
+      router.replace({
+        pathname: "/(tabs)/AdsScreen"
+      });
     } catch (e) {
       console.error('Error during logout:', e);
     }

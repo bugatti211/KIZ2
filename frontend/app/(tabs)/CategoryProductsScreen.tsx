@@ -1,20 +1,31 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { useRoute, useNavigation, useIsFocused } from '@react-navigation/native';
 import { HeaderBackButton } from '@react-navigation/elements';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../api';
 
+type RootStackParamList = {
+  CatalogMain: undefined;
+  CategoryProductsScreen: { category: string; categoryId: string };
+  ProductCardScreen: { product: any };
+};
+
+interface RouteParams {
+  category: string;
+  categoryId: string;
+}
+
 export default function CategoryProductsScreen() {
   const route = useRoute();
-  // @ts-ignore
-  const { category, categoryId } = route.params || {};
+  const params = route.params as RouteParams;
+  const { category, categoryId } = params || {};
   const [products, setProducts] = useState<any[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null);
-  const navigation = useNavigation();
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null);  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const isFocused = useIsFocused();
 
   // Set up header back button without label
@@ -45,18 +56,26 @@ export default function CategoryProductsScreen() {
     setLoading(true);
     try {
       const res = await api.get('/products');
+      // Convert categoryId to number since router params are strings
+      const numericCategoryId = Number(categoryId);
+      if (isNaN(numericCategoryId)) {
+        throw new Error('Invalid category ID');
+      }
+      
       const filteredProducts = res.data
-        .filter((p: any) => p.categoryId === categoryId && p.active === true)
+        .filter((p: any) => p.categoryId === numericCategoryId && p.active === true)
         .map((p: any) => ({
           ...p,
           stock: Number(p.stock),
-          category: p.category || { id: categoryId, name: category }
+          category: p.category || { id: numericCategoryId, name: category }
         }));
       setProducts(filteredProducts);
       setFilteredProducts(filteredProducts);
     } catch (e) {
+      console.error('Error fetching products:', e);
       setProducts([]);
       setFilteredProducts([]);
+      Alert.alert('Ошибка', 'Не удалось загрузить товары. Пожалуйста, попробуйте позже.');
     } finally {
       setLoading(false);
     }
@@ -75,9 +94,7 @@ export default function CategoryProductsScreen() {
     );
     setFilteredProducts(filtered);
   };
-
   const openProductCard = (product: any) => {
-    // @ts-ignore
     navigation.navigate('ProductCardScreen', { product });
   };
 

@@ -12,7 +12,16 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import api from '../api';
+
+type RootStackParamList = {
+  CatalogMain: undefined;
+  CategoryProductsScreen: { categoryId: string; category: string };
+  ProductCardScreen: { product: any };
+};
 
 interface Category {
   id: string;
@@ -22,10 +31,17 @@ interface Category {
 interface Product {
   id: string;
   name: string;
+  categoryId: string;
   category: Category;
+  description: string;
+  price: number;
+  stock: number;
+  active: boolean;
 }
 
 export default function CatalogScreen() {
+  const router = useRouter();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [isAdmin, setIsAdmin] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -170,21 +186,29 @@ export default function CatalogScreen() {
       <ScrollView>
         {categories.length === 0 && !error ? (
           <Text style={styles.emptyText}>Нет доступных категорий</Text>
-        ) : (
-          categories.map((category) => (
-            <View key={category.id} style={styles.categoryBlock}>
+        ) : (          categories.map((category) => (
+            <TouchableOpacity 
+              key={category.id} 
+              style={styles.categoryBlock}              onPress={() => navigation.navigate('CategoryProductsScreen', {
+                categoryId: category.id,
+                category: category.name
+              })}
+            >
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Text style={styles.categoryText}>{category.name}</Text>
                 {isAdmin && (
                   <TouchableOpacity
-                    onPress={() => handleDeleteCategory(category.id)}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      handleDeleteCategory(category.id);
+                    }}
                     style={{ padding: 4 }}
                   >
                     <Ionicons name="trash-outline" size={20} color="#d32f2f" />
                   </TouchableOpacity>
                 )}
               </View>
-            </View>
+            </TouchableOpacity>
           ))
         )}
       </ScrollView>

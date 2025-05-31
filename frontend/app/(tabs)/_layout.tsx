@@ -106,14 +106,13 @@ function ProfileStack() {
 
 function CatalogStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="CatalogMain" component={CatalogScreen} options={{ title: 'Каталог', headerShown: true }} />
+    <Stack.Navigator>
+      <Stack.Screen name="CatalogMain" component={CatalogScreen} options={{ title: 'Каталог' }} />
       <Stack.Screen 
         name="CategoryProductsScreen" 
         component={CategoryProductsScreen} 
         options={({ route }: any) => ({ 
           title: route.params?.category || 'Товары категории',
-          headerShown: true,
           headerStyle: {
             backgroundColor: '#fff',
           },
@@ -128,7 +127,6 @@ function CatalogStack() {
         component={ProductCardScreen} 
         options={({ route }: any) => ({ 
           title: route.params?.product?.name || 'Товар',
-          headerShown: true,
           headerStyle: {
             backgroundColor: '#fff',
           },
@@ -168,19 +166,14 @@ export default function TabLayout() {
     }
   }, []);
 
-  // Проверяем статус при монтировании и при изменении токена
   useEffect(() => {
-    checkAdminStatus();
-  }, [checkAdminStatus, token]);
-
-  // Добавляем слушатель изменений токена через EventEmitter
-  useEffect(() => {
-    // Немедленно проверяем статус при монтировании
+    // Check immediately when component mounts
     checkAdminStatus();
     
-    // Подписываемся на события изменения токена
+    // Subscribe to token change events
     authEvents.on(AUTH_EVENTS.TOKEN_CHANGE, checkAdminStatus);
-
+    
+    // Clean up subscription on unmount
     return () => {
       authEvents.off(AUTH_EVENTS.TOKEN_CHANGE, checkAdminStatus);
     };
@@ -202,9 +195,10 @@ export default function TabLayout() {
       />
       <Tab.Screen
         name="catalog"
-        component={CatalogScreen}
+        component={CatalogStack}
         options={{
           title: 'Каталог',
+          headerShown: false,
           tabBarIcon: ({ color, size }) => <Ionicons name="grid" size={size} color={color} />,
         }}
       />
