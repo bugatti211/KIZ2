@@ -3,29 +3,39 @@ import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, 
 import { useRoute, useNavigation, useIsFocused } from '@react-navigation/native';
 import { HeaderBackButton } from '@react-navigation/elements';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../../types/navigation';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../api';
 
-type RootStackParamList = {
-  CatalogMain: undefined;
-  CategoryProductsScreen: { category: string; categoryId: string };
-  ProductCardScreen: { product: any };
-};
-
-interface RouteParams {
+type CategoryProductsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
+type RouteParams = {
   category: string;
   categoryId: string;
+};
+
+interface Product {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  stock: number;
+  category?: {
+    id: string;
+    name: string;
+  };
+  active: boolean;
 }
 
 export default function CategoryProductsScreen() {
   const route = useRoute();
   const params = route.params as RouteParams;
   const { category, categoryId } = params || {};
-  const [products, setProducts] = useState<any[]>([]);
-  const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null);  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null);
+  const navigation = useNavigation<CategoryProductsScreenNavigationProp>();
   const isFocused = useIsFocused();
 
   // Set up header back button without label
@@ -94,7 +104,7 @@ export default function CategoryProductsScreen() {
     );
     setFilteredProducts(filtered);
   };
-  const openProductCard = (product: any) => {
+  const openProductCard = (product: Product) => {
     navigation.navigate('ProductCardScreen', { product });
   };
 

@@ -14,14 +14,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../../types/navigation';
 import api from '../api';
 
-type RootStackParamList = {
-  CatalogMain: undefined;
-  CategoryProductsScreen: { categoryId: string; category: string };
-  ProductCardScreen: { product: any };
-};
+type CatalogScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 interface Category {
   id: string;
@@ -41,7 +38,7 @@ interface Product {
 
 export default function CatalogScreen() {
   const router = useRouter();
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation = useNavigation<CatalogScreenNavigationProp>();
   const [isAdmin, setIsAdmin] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -142,6 +139,10 @@ export default function CatalogScreen() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleCategoryPress = (categoryId: string, category: string) => {
+    navigation.navigate('CategoryProductsScreen', { categoryId, category });
   };
 
   useEffect(() => {

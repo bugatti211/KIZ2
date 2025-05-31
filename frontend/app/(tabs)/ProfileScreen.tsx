@@ -7,6 +7,9 @@ import { styles } from '../styles/ProfileScreenStyles';
 import { useRouter } from 'expo-router';
 import { authEvents, AUTH_EVENTS } from '../events';
 import { decodeToken } from '../utils/tokenUtils';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { ProfileStackParamList } from '../../types/navigation';
 
 interface ProfileUser {
   id: number;
@@ -22,8 +25,11 @@ interface ProfileScreenProps {
   route?: any;
 }
 
+type ProfileScreenNavigationProp = NativeStackNavigationProp<ProfileStackParamList>;
+
 export default function ProfileScreen({ setIsAuthenticated, navigation, route }: ProfileScreenProps): React.JSX.Element {
   const router = useRouter();
+  const navigationNative = useNavigation<ProfileScreenNavigationProp>();
   const [user, setUser] = useState<ProfileUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
@@ -518,7 +524,7 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
               <View style={styles.menuContainer}>
                 {renderMenuItem('👤', 'Личные данные', () => setShowPersonalInfo(true))}
                 {renderMenuItem('🛍️', 'Мои заказы', () => router.push('/(tabs)/OrdersScreen'))}
-                {renderMenuItem('📦', 'Управление товарами', () => router.push('/(tabs)/ProductManagementScreen'))}
+                {renderMenuItem('📦', 'Управление товарами', () => navigation.navigate('ProductManagementScreen'))}
                 {renderMenuItem('📋', 'Поставки', () => setShowSupplyModal(true))}
                 {renderMenuItem('💰', 'Оффлайн-продажи', () => router.push('/(tabs)/OfflineSalesScreen'))}
                 {renderMenuItem('⚖️', 'Объявления на модерацию', () => router.push('/(tabs)/AdsScreen'))}
