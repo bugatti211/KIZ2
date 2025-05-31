@@ -10,24 +10,40 @@ import {
   ScrollView, 
   ActivityIndicator,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  Modal,
+  Pressable
 } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { getContacts } from '../authApi';
 import { yandexGptService } from '../../services/yandexGptService';
 import { chatHistoryService, ChatMessage } from '../../services/chatHistoryService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
 
 export default function ConsultScreen() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState('employee');
   const [contacts, setContacts] = useState({ telegram: '', whatsapp: '' });
   const [loading, setLoading] = useState(true);
-  const [inputMessage, setInputMessage] = useState('');  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [inputMessage, setInputMessage] = useState('');
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
-
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [showAuth, setShowAuth] = useState(false);
+  const [isAuthChecked, setIsAuthChecked] = useState(false);
   useEffect(() => {
-    loadContacts();
-    loadChatHistory();
+    const checkAuth = async () => {
+      const token = await AsyncStorage.getItem('token');
+      setIsAuthenticated(!!token);
+      setIsAuthChecked(true);
+      if (token) {
+        loadChatHistory();
+      }
+    };
+    checkAuth();
+    loadContacts(); // Загружаем контакты всегда, независимо от авторизации
   }, []);
 
   const loadChatHistory = async () => {
@@ -112,7 +128,10 @@ export default function ConsultScreen() {
         message.role === 'user' ? styles.userMessage : styles.assistantMessage
       ]}
     >
-      <Text style={styles.messageText}>{message.text}</Text>
+      <Text style={[
+        styles.messageText,
+        message.role === 'user' && styles.userMessageText
+      ]}>{message.text}</Text>
       <Text style={[
         styles.messageTime,
         message.role === 'user' ? styles.userMessageTime : styles.assistantMessageTime
@@ -120,18 +139,17 @@ export default function ConsultScreen() {
         {formatMessageTime(message.timestamp)}
       </Text>
     </View>
-  );
-
-  const renderContent = () => {
+  );  const renderContent = () => {
     switch (activeTab) {
       case 'employee':
         return (
           <View style={styles.contentContainer}>
             <Text style={styles.contentText}>Связаться с сотрудником</Text>
             {loading ? (
-              <Text>Загрузка контактов...</Text>
+              <ActivityIndicator size="large" />
             ) : (
-              <View style={styles.contactButtons}>                <TouchableOpacity
+              <View style={styles.contactButtons}>
+                <TouchableOpacity
                   style={[styles.contactButton, { backgroundColor: '#0088cc' }]}
                   onPress={openTelegram}
                 >
@@ -148,7 +166,23 @@ export default function ConsultScreen() {
               </View>
             )}
           </View>
-        );      case 'ai':
+        );
+      case 'ai':
+        if (!isAuthenticated) {
+          return (
+            <View style={styles.contentContainer}>
+              <Text style={styles.contentText}>
+                Для использования AI помощника необходимо авторизоваться
+              </Text>
+              <TouchableOpacity 
+                style={styles.authButton}
+                onPress={() => setShowAuth(true)}
+              >
+                <Text style={styles.authButtonText}>Войти</Text>
+              </TouchableOpacity>
+            </View>
+          );
+        }
         return (
           <KeyboardAvoidingView 
             style={styles.chatContainer}
@@ -169,7 +203,8 @@ export default function ConsultScreen() {
                 </View>
               )}
             </ScrollView>
-            <View style={styles.inputContainer}>              <TextInput
+            <View style={styles.inputContainer}>
+              <TextInput
                 style={styles.input}
                 value={inputMessage}
                 onChangeText={setInputMessage}
@@ -194,6 +229,7 @@ export default function ConsultScreen() {
         return null;
     }
   };
+
   const renderHeader = () => (
     <View style={styles.chatHeader}>
       <Text style={styles.chatTitle}>Чат с AI помощником</Text>
@@ -204,7 +240,6 @@ export default function ConsultScreen() {
       )}
     </View>
   );
-
   const renderTabs = () => (
     <View style={styles.tabContainer}>
       <TouchableOpacity
@@ -222,22 +257,65 @@ export default function ConsultScreen() {
       <TouchableOpacity
         style={[
           styles.tab,
-          activeTab === 'ai' && styles.activeTab
+          activeTab === 'ai' && styles.activeTab,
+          !isAuthenticated && styles.disabledTab
         ]}
-        onPress={() => setActiveTab('ai')}
+        onPress={() => {
+          if (!isAuthenticated) {
+            setShowAuth(true);
+          } else {
+            setActiveTab('ai');
+          }
+        }}
       >
         <Text style={[
           styles.tabText,
-          activeTab === 'ai' && styles.activeTabText
+          activeTab === 'ai' && styles.activeTabText,
+          !isAuthenticated && styles.disabledTabText
         ]}>AI помощник</Text>
       </TouchableOpacity>
     </View>
   );
-
+  if (!isAuthChecked) return null;
   return (
     <View style={styles.container}>
       {renderTabs()}
       {renderContent()}
+
+      <Modal visible={showAuth} animationType="fade" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Вход в аккаунт</Text>
+              <Pressable onPress={() => setShowAuth(false)} style={styles.closeButton}>
+                <Text style={styles.closeButtonText}>×</Text>
+              </Pressable>
+            </View>
+            <Text style={styles.modalText}>
+              Для использования AI помощника необходимо войти в аккаунт
+            </Text>
+            <TouchableOpacity 
+              onPress={() => {
+                setShowAuth(false);
+                router.push("/(auth)/login");
+              }}
+              style={styles.authButton}
+            >
+              <Text style={styles.authButtonText}>Войти</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              onPress={() => {
+                setShowAuth(false);
+                router.push("/(auth)/register");
+              }}
+              style={[styles.authButton, styles.registerButton]}
+            >
+              <Text style={styles.authButtonText}>Зарегистрироваться</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -332,6 +410,11 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 12,
     marginBottom: 8,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
   },
   userMessage: {
     alignSelf: 'flex-end',
@@ -339,11 +422,17 @@ const styles = StyleSheet.create({
   },
   assistantMessage: {
     alignSelf: 'flex-start',
-    backgroundColor: '#E9E9EB',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
   },
   messageText: {
     fontSize: 16,
     lineHeight: 22,
+    color: '#000', // Default color for assistant messages
+  },
+  userMessageText: {
+    color: '#FFFFFF', // White text for user messages
   },
   messageTime: {
     fontSize: 12,
@@ -394,5 +483,72 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     backgroundColor: '#E9E9EB',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    width: '92%',
+    maxWidth: 400,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  modalText: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 20,
+    lineHeight: 22,
+  },
+  authButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+    marginVertical: 8,
+  },
+  registerButton: {
+    backgroundColor: '#4CAF50',
+  },
+  authButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  disabledTab: {
+    backgroundColor: '#f0f0f0',
+    opacity: 0.7,
+  },
+  disabledTabText: {
+    color: '#999',
+  },
+  closeButton: {
+    padding: 8,
+  },
+  closeButtonText: {
+    fontSize: 18,
+    color: '#333',
   },
 });

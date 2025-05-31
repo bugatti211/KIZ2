@@ -146,6 +146,11 @@ export const styles = StyleSheet.create({
     color: '#333',
     flex: 1,
   },
+  menuText: {
+    fontSize: 16,
+    color: '#333',
+    flex: 1,
+  },
   errorText: {
     color: 'red',
     marginBottom: 8,
@@ -181,12 +186,7 @@ export const styles = StyleSheet.create({
 
   // Icon and button styles
   menuIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#e3f2fd',
-    justifyContent: 'center',
-    alignItems: 'center',
+    fontSize: 24,
     marginRight: 12,
   },
   button: {
@@ -263,5 +263,51 @@ export const styles = StyleSheet.create({
   // Margin helper
   marginTop16: {
     marginTop: 16,
+  },
+
+  // Welcome screen styles
+  welcomeContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+    marginVertical: 32,
+  },
+  welcomeTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  welcomeText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 32,
+    lineHeight: 24,
+  },
+  authButton: {
+    width: '100%',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 16,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  loginButton: {
+    backgroundColor: '#2196F3',
+  },
+  registerButton: {
+    backgroundColor: '#4CAF50',
+  },
+  authButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
   },
 });

@@ -257,14 +257,41 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
     }
   };
 
-  const renderMenuItem = (icon: string, text: string, onPress: () => void, color: string = '#e3f2fd') => (
-    <TouchableOpacity style={styles.menuItem} onPress={onPress}>
-      <View style={[styles.menuIcon, { backgroundColor: color }]}>
-        <Text>{icon}</Text>
-      </View>
-      <Text style={styles.menuItemText}>{text}</Text>
-    </TouchableOpacity>
-  );
+  const renderMenuItem = (icon: string, title: string, onPress: () => void, backgroundColor?: string) => {
+    // For unauthorized users, only show login and register buttons
+    if (!user && title !== 'Войти' && title !== 'Зарегистрироваться') {
+      return null;
+    }
+    
+    // For authorized users, check role-based permissions
+    if (user) {
+      // Only show employee registration for admin
+      if (title === 'Регистрация сотрудника' && user.role !== 'admin') {
+        return null;
+      }
+      
+      // Only show moderation for admin
+      if (title === 'Объявления на модерацию' && user.role !== 'admin') {
+        return null;
+      }
+      
+      // Only show product management and supply features for admin and sellers
+      if ((title === 'Управление товарами' || title === 'Поставки' || title === 'Оффлайн-продажи') 
+          && user.role !== 'admin' && user.role !== 'Продавец') {
+        return null;
+      }
+    }
+
+    return (
+      <TouchableOpacity 
+        style={[styles.menuItem, backgroundColor ? { backgroundColor } : null]} 
+        onPress={onPress}
+      >
+        <Text style={styles.menuIcon}>{icon}</Text>
+        <Text style={styles.menuText}>{title}</Text>
+      </TouchableOpacity>
+    );
+  };
 
   // При открытии личной информации заполняем поля
   useEffect(() => {
@@ -354,46 +381,64 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
   };
 
   return (
-    <ScrollView style={styles.container}>      {/* User Profile Card */}
-      {user && (
-        <View style={styles.userCard}>
-          <Text style={styles.userName}>
-            {user.name || 'Пользователь'}
+    <ScrollView style={styles.container}>
+      {/* Welcome Message for Unauthorized Users */}
+      {!user && (
+        <View style={styles.welcomeContainer}>
+          <Text style={styles.welcomeTitle}>Добро пожаловать!</Text>
+          <Text style={styles.welcomeText}>
+            Войдите в аккаунт или зарегистрируйтесь, чтобы получить доступ ко всем функциям приложения
           </Text>
-          <Text style={styles.userEmail}>{user.email}</Text>
+          <TouchableOpacity 
+            style={[styles.authButton, styles.loginButton]}
+            onPress={() => {
+              setAuthMode('login');
+              setShowAuthModal(true);
+            }}
+          >
+            <Text style={styles.authButtonText}>Войти</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.authButton, styles.registerButton]}
+            onPress={() => {
+              setAuthMode('register');
+              setShowAuthModal(true);
+            }}
+          >
+            <Text style={styles.authButtonText}>Зарегистрироваться</Text>
+          </TouchableOpacity>
         </View>
       )}
 
-      {/* Menu Items */}
-      {renderMenuItem('👤', 'Личная информация', () => setShowPersonalInfo(true))}
-      {renderMenuItem('📝', 'Создать объявление', () => setShowCreate(true))}      {renderMenuItem('⚖️', 'Объявления на модерацию', () => setShowModeration(true))}
-      {renderMenuItem('🛍️', 'Управление товарами', () => navigation.navigate('ProductManagementScreen'))}
-      {renderMenuItem('📦', 'Поставки', () => setShowSupplyModal(true))}
-      {renderMenuItem('👥', 'Регистрация сотрудника', () => setShowEmployeeRegistration(true))}
-      {renderMenuItem('💰', 'Оффлайн-продажи', () => navigation.navigate('OfflineSalesScreen'))}
-      
-      {/* Auth Button */}      <View style={styles.marginTop16}>
-        {user ? (
-          renderMenuItem('🚪', 'Выйти', async () => {
+      {/* Authorized User Content */}
+      {user && (
+        <>
+          <View style={styles.userCard}>
+            <Text style={styles.userName}>{user.name || 'Пользователь'}</Text>
+            <Text style={styles.userEmail}>{user.email}</Text>
+          </View>
+
+          {/* Menu Items */}
+          {renderMenuItem('👤', 'Личная информация', () => setShowPersonalInfo(true))}
+          {renderMenuItem('📝', 'Создать объявление', () => setShowCreate(true))}
+          {renderMenuItem('⚖️', 'Объявления на модерацию', () => setShowModeration(true))}
+          {renderMenuItem('🛍️', 'Управление товарами', () => navigation.navigate('ProductManagementScreen'))}
+          {renderMenuItem('📦', 'Поставки', () => setShowSupplyModal(true))}
+          {renderMenuItem('👥', 'Регистрация сотрудника', () => setShowEmployeeRegistration(true))}
+          {renderMenuItem('💰', 'Оффлайн-продажи', () => navigation.navigate('OfflineSalesScreen'))}
+          
+          {renderMenuItem('🚪', 'Выйти', async () => {
             await AsyncStorage.removeItem('token');
             setUser(null);
             setShowAuthModal(true);
             setAuthMode('login');
             if (setIsAuthenticated) setIsAuthenticated(false);
-          }, '#ffebee')
-        ) : (
-          <>
-            {renderMenuItem('🔑', 'Войти', () => {
-              setAuthMode('login');
-              setShowAuthModal(true);
-            })}
-            {renderMenuItem('✨', 'Зарегистрироваться', () => {
-              setAuthMode('register');
-              setShowAuthModal(true);
-            })}
-          </>
-        )}
-      </View>      {/* Personal Info Modal */}
+          }, '#ffebee')}
+        </>
+      )}
+
+      {/* Modals */}
+      {/* Personal Info Modal */}
       <Modal visible={showPersonalInfo} animationType="slide" transparent>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
