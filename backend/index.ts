@@ -141,8 +141,7 @@ app.delete('/users/:id', authMiddleware as any, (req, res, next) => {
 });
 
 // Регистрация
-app.post('/register', asyncHandler(async (req: Request, res: Response) => {
-  const { name, email, password } = req.body;
+app.post('/register', asyncHandler(async (req: Request, res: Response) => {  const { name, email, password } = req.body;
   if (!name || !email || !password) {
     return res.status(400).json({ error: 'Name, email, and password are required' });
   }
@@ -150,8 +149,43 @@ app.post('/register', asyncHandler(async (req: Request, res: Response) => {
   if (existing) {
     return res.status(409).json({ error: 'User already exists' });
   }
-  const user = await User.create({ name, email, password });
+  // Set default role as "Пользователь" for regular registration
+  const userData: {
+    name: string;
+    email: string;
+    password: string;
+    role: 'admin' | 'Пользователь' | 'Продавец' | 'Бухгалтер' | 'Грузчик';
+  } = {
+    name,
+    email,
+    password,
+    role: 'Пользователь'
+  };
+  const user = await User.create(userData);
   res.status(201).json({ id: user.id, name: user.name, email: user.email });
+}));
+
+// Регистрация сотрудника
+app.post('/users/register-employee', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
+  const { name, email, password, role } = req.body;
+
+  if (!name || !email || !password || !role) {
+    return res.status(400).json({ error: 'All fields are required' });
+  }
+
+  // Validate role
+  const validRoles = ['Продавец', 'Бухгалтер', 'Грузчик'];
+  if (!validRoles.includes(role)) {
+    return res.status(400).json({ error: 'Invalid role' });
+  }
+
+  const existing = await User.findOne({ where: { email } });
+  if (existing) {
+    return res.status(409).json({ error: 'User already exists' });
+  }
+
+  const user = await User.create({ name, email, password, role });
+  res.status(201).json({ id: user.id, name: user.name, email: user.email, role: user.role });
 }));
 
 // Вход
@@ -167,9 +201,8 @@ app.post('/login', asyncHandler(async (req: Request, res: Response) => {
   const isMatch = await bcrypt.compare(password, user.password);
   if (!isMatch) {
     return res.status(401).json({ error: 'Invalid credentials' });
-  }
-  const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
-  res.json({ token, user: { id: user.id, name: user.name, email: user.email } });
+  }  const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+  res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
 }));
 
 // CRUD для объявлений

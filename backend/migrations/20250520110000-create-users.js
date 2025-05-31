@@ -21,11 +21,10 @@ module.exports = {
       name: {
         type: Sequelize.STRING,
         allowNull: false,
-      },
-      role: {
-        type: Sequelize.ENUM('admin', 'user'),
+      },      role: {
+        type: Sequelize.ENUM('admin', 'Пользователь', 'Продавец', 'Бухгалтер', 'Грузчик'),
         allowNull: false,
-        defaultValue: 'user',
+        defaultValue: 'Пользователь',
       },
       createdAt: {
         allowNull: false,
@@ -44,8 +43,7 @@ module.exports = {
       email: 'admin@example.com',
       // This is a hashed password for 'admin123' - you should change this in production
       password: '$2b$10$rYQI5ZQ5Q5Q5Q5Q5Q5Q5Q5Q5Q5Q5Q5Q5Q5Q5Q5Q5Q5Q5Q5Q5',
-      name: 'Admin',
-      role: 'admin',
+      name: 'Admin',      role: 'admin',
       createdAt: new Date(),
       updatedAt: new Date()
     }]);

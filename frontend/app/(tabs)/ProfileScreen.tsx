@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Button, TextInput, FlatList, StyleSheet, Modal, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, Button, TextInput, FlatList, StyleSheet, Modal, TouchableOpacity, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../api';
 import { useAuthModal } from '../AuthContext';
@@ -16,6 +16,7 @@ interface ProfileUser {
   name: string;
   email: string;
   address?: string;
+  role: string;
 }
 
 export default function ProfileScreen({ setIsAuthenticated, navigation, route }: ProfileScreenProps): React.JSX.Element {
@@ -25,8 +26,7 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
   const [showPersonalInfo, setShowPersonalInfo] = useState(false);
   const [showModeration, setShowModeration] = useState(false);
   const [showEmployeeRegistration, setShowEmployeeRegistration] = useState(false);
-  
-  // User and auth state
+    // User and auth state
   const [user, setUser] = useState<ProfileUser | null>(null);
   const { setShowAuthModal, setAuthMode, showAuthModal } = useAuthModal();
   
@@ -40,6 +40,7 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
   const [employeeName, setEmployeeName] = useState('');
   const [employeeEmail, setEmployeeEmail] = useState('');
   const [employeePassword, setEmployeePassword] = useState('');
+  const [employeeRole, setEmployeeRole] = useState('Продавец');
   const [employeeError, setEmployeeError] = useState('');
   
   // Ad state
@@ -493,9 +494,7 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
     if (!emailRegex.test(employeeEmail)) {
       setEmployeeError('Пожалуйста, введите корректный email адрес');
       return;
-    }
-
-    // Validate password length
+    }    // Validate password length
     if (employeePassword.length < 6) {
       setEmployeeError('Пароль должен содержать минимум 6 символов');
       return;
@@ -509,7 +508,7 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
         name: employeeName,
         email: employeeEmail,
         password: employeePassword,
-        role: 'employee'
+        role: employeeRole
       });
       
       // Очистить форму и закрыть модальное окно
@@ -568,71 +567,183 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
 
       {/* Personal Info Modal */}
       <Modal visible={showPersonalInfo} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Личная информация</Text>
-            <TextInput
-              value={editName}
-              onChangeText={setEditName}
-              style={styles.input}
-              placeholder="Имя"
-            />
-            <TextInput
-              value={editEmail}
-              onChangeText={setEditEmail}
-              style={styles.input}
-              placeholder="Email"
-            />
-            <TextInput
-              value={editAddress}
-              onChangeText={setEditAddress}
-              style={styles.input}
-              placeholder="Адрес"
-            />
-            <Button
-              title={saving ? 'Сохранение...' : 'Сохранить'}
-              onPress={handleSavePersonalInfo}
-              disabled={saving}
-            />
-            <Button
-              title="Отмена"
-              onPress={() => setShowPersonalInfo(false)}
-            />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
+          <View style={styles.modalOverlay}>
+            <ScrollView style={{ width: '100%' }}>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>Личная информация</Text>
+                <TextInput
+                  value={editName}
+                  onChangeText={setEditName}
+                  style={styles.input}
+                  placeholder="Имя"
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                  editable={true}
+                />
+                <TextInput
+                  value={editEmail}
+                  onChangeText={setEditEmail}
+                  style={styles.input}
+                  placeholder="Email"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={true}
+                />
+                <TextInput
+                  value={editAddress}
+                  onChangeText={setEditAddress}
+                  style={styles.input}
+                  placeholder="Адрес"
+                  autoCapitalize="sentences"
+                  autoCorrect={false}
+                  editable={true}
+                />
+                <Button
+                  title={saving ? 'Сохранение...' : 'Сохранить'}
+                  onPress={handleSavePersonalInfo}
+                  disabled={saving}
+                />
+                <Button
+                  title="Отмена"
+                  onPress={() => setShowPersonalInfo(false)}
+                />
+              </View>
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Employee Registration Modal */}
+      <Modal visible={showEmployeeRegistration} animationType="slide" transparent>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
+          <View style={styles.modalOverlay}>
+            <ScrollView style={{ width: '100%' }}>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>Регистрация сотрудника</Text>
+                
+                {employeeError ? (
+                  <Text style={{ color: 'red', marginBottom: 8 }}>{employeeError}</Text>
+                ) : null}
+                
+                <TextInput
+                  value={employeeName}
+                  onChangeText={setEmployeeName}
+                  style={styles.input}
+                  placeholder="Имя сотрудника"
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                  editable={true}
+                />
+                <TextInput
+                  value={employeeEmail}
+                  onChangeText={setEmployeeEmail}
+                  style={styles.input}
+                  placeholder="Email сотрудника"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={true}
+                />
+                <TextInput
+                  value={employeePassword}
+                  onChangeText={setEmployeePassword}
+                  style={styles.input}
+                  placeholder="Пароль"
+                  secureTextEntry
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={true}
+                />
+                <View style={styles.input}>
+                  <Picker
+                    selectedValue={employeeRole}
+                    onValueChange={(itemValue) => setEmployeeRole(itemValue)}
+                    style={{ height: 50 }}
+                  >
+                    <Picker.Item label="Продавец" value="Продавец" />
+                    <Picker.Item label="Бухгалтер" value="Бухгалтер" />
+                    <Picker.Item label="Грузчик" value="Грузчик" />
+                  </Picker>
+                </View>
+                <TouchableOpacity
+                  style={[
+                    styles.button,
+                    (!employeeName || !employeeEmail || !employeePassword || !employeeRole) && styles.buttonDisabled
+                  ]}
+                  disabled={!employeeName || !employeeEmail || !employeePassword || !employeeRole}
+                  onPress={handleEmployeeRegistration}
+                >
+                  <Text style={styles.buttonText}>Зарегистрировать</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.button, styles.buttonSecondary]}
+                  onPress={() => {
+                    setShowEmployeeRegistration(false);
+                    setEmployeeName('');
+                    setEmployeeEmail('');
+                    setEmployeePassword('');
+                    setEmployeeError('');
+                  }}
+                >
+                  <Text style={[styles.buttonText, { color: '#666' }]}>Отмена</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Create Ad Modal */}
       <Modal visible={showCreate} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Создать объявление</Text>
-            <TextInput
-              value={adText}
-              onChangeText={setAdText}
-              placeholder="Текст объявления"
-              multiline
-              style={styles.input}
-            />
-            <TextInput
-              placeholder="Номер телефона"
-              value={adPhone}
-              onChangeText={setAdPhone}
-              keyboardType="phone-pad"
-              style={styles.input}
-            />
-            {!!error && <Text style={{ color: 'red', marginBottom: 8 }}>{error}</Text>}
-            <Button
-              title={submitting ? 'Отправка...' : 'Отправить на утверждение'}
-              onPress={handleCreate}
-              disabled={submitting}
-            />
-            <Button
-              title="Отмена"
-              onPress={() => setShowCreate(false)}
-            />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
+          <View style={styles.modalOverlay}>
+            <ScrollView style={{ width: '100%' }}>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>Создать объявление</Text>
+                <TextInput
+                  value={adText}
+                  onChangeText={setAdText}
+                  placeholder="Текст объявления"
+                  multiline
+                  style={styles.input}
+                  autoCapitalize="sentences"
+                  autoCorrect={true}
+                  editable={true}
+                />
+                <TextInput
+                  placeholder="Номер телефона"
+                  value={adPhone}
+                  onChangeText={setAdPhone}
+                  keyboardType="phone-pad"
+                  style={styles.input}
+                  autoCorrect={false}
+                  editable={true}
+                />
+                {!!error && <Text style={{ color: 'red', marginBottom: 8 }}>{error}</Text>}
+                <Button
+                  title={submitting ? 'Отправка...' : 'Отправить на утверждение'}
+                  onPress={handleCreate}
+                  disabled={submitting}
+                />
+                <Button
+                  title="Отмена"
+                  onPress={() => setShowCreate(false)}
+                />
+              </View>
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Moderation Modal */}      <Modal visible={showModeration} animationType="slide" transparent>
@@ -675,62 +786,6 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
       {/* Supply Modal */}
       <SupplyModal />
 
-      {/* Employee Registration Modal */}
-      <Modal visible={showEmployeeRegistration} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Регистрация сотрудника</Text>
-            
-            {employeeError ? (
-              <Text style={{ color: 'red', marginBottom: 8 }}>{employeeError}</Text>
-            ) : null}
-            
-            <TextInput
-              value={employeeName}
-              onChangeText={setEmployeeName}
-              style={styles.input}
-              placeholder="Имя сотрудника"
-            />
-            <TextInput
-              value={employeeEmail}
-              onChangeText={setEmployeeEmail}
-              style={styles.input}
-              placeholder="Email сотрудника"
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-            <TextInput
-              value={employeePassword}
-              onChangeText={setEmployeePassword}
-              style={styles.input}
-              placeholder="Пароль"
-              secureTextEntry
-            />
-            <TouchableOpacity
-              style={[
-                styles.button,
-                (!employeeName || !employeeEmail || !employeePassword) && styles.buttonDisabled
-              ]}
-              disabled={!employeeName || !employeeEmail || !employeePassword}
-              onPress={handleEmployeeRegistration}
-            >
-              <Text style={styles.buttonText}>Зарегистрировать</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.button, styles.buttonSecondary]}
-              onPress={() => {
-                setShowEmployeeRegistration(false);
-                setEmployeeName('');
-                setEmployeeEmail('');
-                setEmployeePassword('');
-                setEmployeeError('');
-              }}
-            >
-              <Text style={[styles.buttonText, { color: '#666' }]}>Отмена</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </ScrollView>
   );
 }

@@ -10,6 +10,7 @@ interface UserAttributes {
   address?: string;
   telegram?: string;
   whatsapp?: string;
+  role: 'admin' | 'Пользователь' | 'Продавец' | 'Бухгалтер' | 'Грузчик';
 }
 
 interface UserCreationAttributes extends Optional<UserAttributes, 'id'> {}
@@ -20,6 +21,7 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
   public email!: string;
   public password!: string;
   public address?: string;
+  public role!: 'admin' | 'Пользователь' | 'Продавец' | 'Бухгалтер' | 'Грузчик';
 }
 
 User.init(
@@ -41,10 +43,14 @@ User.init(
     password: {
       type: DataTypes.STRING,
       allowNull: false,
-    },
-    address: {
+    },    address: {
       type: DataTypes.STRING,
       allowNull: true,
+    },
+    role: {
+      type: DataTypes.ENUM('admin', 'Пользователь', 'Продавец', 'Бухгалтер', 'Грузчик'),
+      allowNull: false,
+      defaultValue: 'Пользователь'
     },
   },
   {
