@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import CatalogScreen from './CatalogScreen';
 import ConsultScreen from './ConsultScreen';
@@ -141,6 +142,27 @@ function CatalogStack() {
 }
 
 export default function TabLayout() {
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    checkAdminStatus();
+  }, []);
+
+  const checkAdminStatus = async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (token) {
+        const tokenData = JSON.parse(atob(token.split('.')[1]));
+        setIsAdmin(tokenData.role === 'admin');
+      } else {
+        setIsAdmin(false);
+      }
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+      setIsAdmin(false);
+    }
+  };
+
   return (
     <Tab.Navigator 
       initialRouteName="AdsScreen"
@@ -178,14 +200,16 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => <Ionicons name="cart" size={size} color={color} />,
         }}
       />
-      <Tab.Screen
-        name="orders"
-        component={OrdersScreen}
-        options={{
-          title: 'Заказы',
-          tabBarIcon: ({ color, size }) => <Ionicons name="receipt" size={size} color={color} />,
-        }}
-      />
+      {isAdmin && (
+        <Tab.Screen
+          name="orders"
+          component={OrdersScreen}
+          options={{
+            title: 'Заказы',
+            tabBarIcon: ({ color, size }) => <Ionicons name="receipt" size={size} color={color} />,
+          }}
+        />
+      )}
       <Tab.Screen
         name="profile"
         component={ProfileStack}
