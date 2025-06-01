@@ -148,6 +148,8 @@ function CatalogStack() {
 
 export default function TabLayout() {
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isSeller, setIsSeller] = useState(false);
+  const [isStaff, setIsStaff] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [token, setToken] = useState<string | null>(null);
 
@@ -161,12 +163,18 @@ export default function TabLayout() {
         try {
           const tokenData = JSON.parse(atob(currentToken.split('.')[1]));
           setIsAdmin(tokenData.role === 'admin');
+          setIsSeller(tokenData.role === 'seller');
+          setIsStaff(['admin', 'seller', 'accountant', 'loader'].includes(tokenData.role));
         } catch (e) {
           console.error('Error parsing token:', e);
           setIsAdmin(false);
+          setIsSeller(false);
+          setIsStaff(false);
         }
       } else {
         setIsAdmin(false);
+        setIsSeller(false);
+        setIsStaff(false);
       }
     } catch (error) {
       console.error('Error checking admin status:', error);
@@ -176,13 +184,8 @@ export default function TabLayout() {
   }, []);
 
   useEffect(() => {
-    // Check immediately when component mounts
     checkAdminStatus();
-    
-    // Subscribe to token change events
     authEvents.on(AUTH_EVENTS.TOKEN_CHANGE, checkAdminStatus);
-    
-    // Clean up subscription on unmount
     return () => {
       authEvents.off(AUTH_EVENTS.TOKEN_CHANGE, checkAdminStatus);
     };
@@ -194,6 +197,7 @@ export default function TabLayout() {
       screenOptions={{
         tabBarActiveTintColor: '#007AFF',
       }}>
+      {/* Screens */}
       <Tab.Screen
         name="AdsScreen"
         component={AdsScreen}
@@ -219,15 +223,17 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => <Ionicons name="chatbubble" size={size} color={color} />,
         }}
       />
-      <Tab.Screen
-        name="cart"
-        component={CartScreen}
-        options={{
-          title: 'Корзина',
-          tabBarIcon: ({ color, size }) => <Ionicons name="cart" size={size} color={color} />,
-        }}
-      />
-      {isAdmin && (
+      {!isStaff && (
+        <Tab.Screen
+          name="cart"
+          component={CartScreen}
+          options={{
+            title: 'Корзина',
+            tabBarIcon: ({ color, size }) => <Ionicons name="cart" size={size} color={color} />,
+          }}
+        />
+      )}
+      {(isAdmin || isSeller) && (
         <Tab.Screen
           name="orders"
           component={OrdersScreen}
@@ -245,7 +251,8 @@ export default function TabLayout() {
           headerShown: false,
           tabBarIcon: ({ color, size }) => <Ionicons name="person" size={size} color={color} />,
         }}
-      /></Tab.Navigator>
+      />
+    </Tab.Navigator>
   );
 }
 
