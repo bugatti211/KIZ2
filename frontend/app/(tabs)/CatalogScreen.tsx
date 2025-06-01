@@ -17,6 +17,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../types/navigation';
 import api from '../api';
+import { UserRole } from '../../constants/Roles';
 
 type CatalogScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -57,7 +58,7 @@ export default function CatalogScreen() {
       const token = await AsyncStorage.getItem('token');
       if (token) {
         const tokenData = JSON.parse(atob(token.split('.')[1]));
-        setIsAdmin(tokenData.role === 'admin');
+        setIsAdmin(tokenData.role === UserRole.ADMIN);
       } else {
         setIsAdmin(false);
       }

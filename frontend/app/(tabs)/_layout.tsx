@@ -21,6 +21,12 @@ import OfflineSalesScreen from './OfflineSalesScreen';
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
+// Функция для проверки авторизации
+const checkAuth = async () => {
+  const token = await AsyncStorage.getItem('token');
+  return !!token;
+};
+
 function ProfileStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -142,12 +148,14 @@ function CatalogStack() {
 
 export default function TabLayout() {
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [token, setToken] = useState<string | null>(null);
 
   const checkAdminStatus = useCallback(async () => {
     try {
       const currentToken = await AsyncStorage.getItem('token');
       setToken(currentToken);
+      setIsAuthenticated(!!currentToken);
       
       if (currentToken) {
         try {
@@ -163,6 +171,7 @@ export default function TabLayout() {
     } catch (error) {
       console.error('Error checking admin status:', error);
       setIsAdmin(false);
+      setIsAuthenticated(false);
     }
   }, []);
 
@@ -209,7 +218,8 @@ export default function TabLayout() {
           title: 'Консультант',
           tabBarIcon: ({ color, size }) => <Ionicons name="chatbubble" size={size} color={color} />,
         }}
-      /><Tab.Screen
+      />
+      <Tab.Screen
         name="cart"
         component={CartScreen}
         options={{
@@ -231,12 +241,11 @@ export default function TabLayout() {
         name="profile"
         component={ProfileStack}
         options={{
-          title: 'Профиль',
+          title: isAuthenticated ? 'Профиль' : 'Войти',
           headerShown: false,
           tabBarIcon: ({ color, size }) => <Ionicons name="person" size={size} color={color} />,
         }}
-      />
-    </Tab.Navigator>
+      /></Tab.Navigator>
   );
 }
 

@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, Button, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, Image, Button, ScrollView, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { HeaderBackButton } from '@react-navigation/elements';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCart } from '../CartContext';
+import { useRouter } from 'expo-router';
 
 type RootStackParamList = {
   CategoryProductsScreen: { category: string } | undefined;
@@ -27,6 +29,7 @@ type ProductCardScreenNavigationProp = CompositeNavigationProp<
 
 export default function ProductCardScreen({ route }: any) {
   const navigation = useNavigation<ProductCardScreenNavigationProp>();
+  const router = useRouter();
   const { product } = route.params || {};
   const { addToCart } = useCart();
   const [isAddingToCart, setIsAddingToCart] = useState(false);
@@ -41,12 +44,23 @@ export default function ProductCardScreen({ route }: any) {
         />
       ),
     });
-  }, [navigation]);
-  const handleBuyPress = async () => {
+  }, [navigation]);  const handleBuyPress = async () => {
     try {
+      // First check if user is authenticated
+      const token = await AsyncStorage.getItem('token');
+      if (!token) {
+        Alert.alert(
+          'Требуется авторизация',
+          'Для добавления товара в корзину необходимо войти в аккаунт',
+          [            { text: 'Отмена', style: 'cancel' },
+            { text: 'Войти', onPress: () => router.push('/(auth)/login') }
+          ]
+        );
+        return;
+      }
+
       setIsAddingToCart(true);
       await addToCart(product, 1);
-      // Removed navigation to Cart screen
     } finally {
       setIsAddingToCart(false);
     }

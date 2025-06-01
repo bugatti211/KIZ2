@@ -12,6 +12,7 @@ import {
   TouchableWithoutFeedback
 } from 'react-native';
 import { styles } from '../app/styles/ProfileScreenStyles';
+import { UserRole, getRoleTranslation } from '../constants/Roles';
 
 interface Props {
   visible: boolean;
@@ -22,11 +23,10 @@ interface Props {
   employeeEmail: string;
   setEmployeeEmail: (value: string) => void;
   employeePassword: string;
-  setEmployeePassword: (value: string) => void;
-  employeeRole: string;
-  setEmployeeRole: (value: string) => void;
+  setEmployeePassword: (value: string) => void;  employeeRole: UserRole;
+  setEmployeeRole: (value: UserRole) => void;
   employeeError: string;
-  employeeRoles: string[];
+  employeeRoles: UserRole[];
 }
 
 export const EmployeeRegistrationModal = ({
@@ -113,7 +113,7 @@ export const EmployeeRegistrationModal = ({
                         employeeRole === role && styles.roleButtonTextSelected
                       ]}
                     >
-                      {role}
+                      {getRoleTranslation(role as UserRole)}
                     </Text>
                   </TouchableOpacity>
                 ))}

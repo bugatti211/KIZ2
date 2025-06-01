@@ -7,6 +7,7 @@ import { styles } from '../styles/ProfileScreenStyles';
 import { useRouter } from 'expo-router';
 import { authEvents, AUTH_EVENTS } from '../events';
 import { decodeToken } from '../utils/tokenUtils';
+import { UserRole, roleTranslations } from '../../constants/Roles';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { ProfileStackParamList } from '../../types/navigation';
@@ -17,7 +18,7 @@ interface ProfileUser {
   name: string;
   email: string;
   address?: string;
-  role: string;
+  role: UserRole;
 }
 
 interface ProfileScreenProps {
@@ -28,9 +29,9 @@ interface ProfileScreenProps {
 
 type ProfileScreenNavigationProp = NativeStackNavigationProp<ProfileStackParamList>;
 
-type EmployeeRole = 'Продавец' | 'Бухгалтер' | 'Грузчик';
+type EmployeeRole = UserRole.SELLER | UserRole.ACCOUNTANT | UserRole.LOADER;
 
-const employeeRoles: EmployeeRole[] = ['Продавец', 'Бухгалтер', 'Грузчик'];
+const employeeRoles: EmployeeRole[] = [UserRole.SELLER, UserRole.ACCOUNTANT, UserRole.LOADER];
 
 export default function ProfileScreen({ setIsAuthenticated, navigation, route }: ProfileScreenProps): React.JSX.Element {
   const router = useRouter();
@@ -55,8 +56,7 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
     // Employee registration state
   const [employeeName, setEmployeeName] = useState('');
   const [employeeEmail, setEmployeeEmail] = useState('');
-  const [employeePassword, setEmployeePassword] = useState('');
-  const [employeeRole, setEmployeeRole] = useState('');
+  const [employeePassword, setEmployeePassword] = useState('');  const [employeeRole, setEmployeeRole] = useState<UserRole>(UserRole.SELLER);
   const [employeeError, setEmployeeError] = useState('');
   
   // Ad state
@@ -309,20 +309,19 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
     }
     
     // Проверяем права доступа на основе роли пользователя
-    if (user) {
-      // Только для админа
-      if (title === 'Регистрация сотрудника' && user.role !== 'admin') {
+    if (user) {      // Только для админа
+      if (title === 'Регистрация сотрудника' && user.role !== UserRole.ADMIN) {
         return null;
       }
       
       // Только для админа
-      if (title === 'Объявления на модерацию' && user.role !== 'admin') {
+      if (title === 'Объявления на модерацию' && user.role !== UserRole.ADMIN) {
         return null;
       }
       
       // Только для админа и продавцов
       if ((title === 'Управление товарами' || title === 'Поставки' || title === 'Оффлайн-продажи') 
-          && user.role !== 'admin' && user.role !== 'Продавец') {
+          && user.role !== UserRole.ADMIN && user.role !== UserRole.SELLER) {
         return null;
       }
     }
@@ -391,8 +390,7 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
   const resetEmployeeForm = () => {
     setEmployeeName('');
     setEmployeeEmail('');
-    setEmployeePassword('');
-    setEmployeeRole('');
+    setEmployeePassword('');    setEmployeeRole(UserRole.SELLER);
     setEmployeeError('');
   };
 
@@ -550,11 +548,10 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
 
           {user ? (
             <>
-              {/* Профиль пользователя */}
-              <View style={styles.profileContainer}>
+              {/* Профиль пользователя */}              <View style={styles.profileContainer}>
                 <Text style={styles.name}>{user.name}</Text>
                 <Text style={styles.email}>{user.email}</Text>
-                <Text style={styles.role}>{user.role}</Text>
+                <Text style={styles.role}>{roleTranslations[user.role as UserRole] || user.role}</Text>
               </View>
               {/* Меню действий */}
               <View style={styles.menuContainer}>

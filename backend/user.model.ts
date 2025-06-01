@@ -1,5 +1,6 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from './sequelize';
+import { UserRole } from './constants/roles';
 const bcrypt = require('bcryptjs');
 
 interface UserAttributes {
@@ -10,18 +11,17 @@ interface UserAttributes {
   address?: string;
   telegram?: string;
   whatsapp?: string;
-  role: 'admin' | 'Пользователь' | 'Продавец' | 'Бухгалтер' | 'Грузчик';
+  role: UserRole;
 }
 
 interface UserCreationAttributes extends Optional<UserAttributes, 'id'> {}
 
 class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
-  public id!: number;
-  public name!: string;
+  public id!: number;  public name!: string;
   public email!: string;
   public password!: string;
   public address?: string;
-  public role!: 'admin' | 'Пользователь' | 'Продавец' | 'Бухгалтер' | 'Грузчик';
+  public role!: UserRole;
 }
 
 User.init(
@@ -46,11 +46,10 @@ User.init(
     },    address: {
       type: DataTypes.STRING,
       allowNull: true,
-    },
-    role: {
-      type: DataTypes.ENUM('admin', 'Пользователь', 'Продавец', 'Бухгалтер', 'Грузчик'),
+    },    role: {
+      type: DataTypes.ENUM(...Object.values(UserRole)),
       allowNull: false,
-      defaultValue: 'Пользователь'
+      defaultValue: UserRole.USER
     },
   },
   {

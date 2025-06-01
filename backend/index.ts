@@ -14,6 +14,7 @@ import { authMiddleware } from './authMiddleware';
 import type { Request, Response } from 'express';
 import sequelizeInstance from './sequelize';
 import { Op } from 'sequelize';
+import { UserRole } from './constants/roles';
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
@@ -148,18 +149,17 @@ app.post('/register', asyncHandler(async (req: Request, res: Response) => {  con
   const existing = await User.findOne({ where: { email } });
   if (existing) {
     return res.status(409).json({ error: 'User already exists' });
-  }
-  // Set default role as "Пользователь" for regular registration
+  }  // Set default role as "user" for regular registration
   const userData: {
     name: string;
     email: string;
     password: string;
-    role: 'admin' | 'Пользователь' | 'Продавец' | 'Бухгалтер' | 'Грузчик';
+    role: UserRole;
   } = {
     name,
     email,
     password,
-    role: 'Пользователь'
+    role: UserRole.USER
   };
   const user = await User.create(userData);
   res.status(201).json({ id: user.id, name: user.name, email: user.email });
@@ -171,11 +171,9 @@ app.post('/users/register-employee', authMiddleware as any, asyncHandler(async (
 
   if (!name || !email || !password || !role) {
     return res.status(400).json({ error: 'All fields are required' });
-  }
-
-  // Validate role
-  const validRoles = ['Продавец', 'Бухгалтер', 'Грузчик'];
-  if (!validRoles.includes(role)) {
+  }  // Validate role
+  const validRoles = [UserRole.SELLER, UserRole.ACCOUNTANT, UserRole.LOADER];
+  if (!validRoles.includes(role as UserRole)) {
     return res.status(400).json({ error: 'Invalid role' });
   }
 
@@ -201,8 +199,15 @@ app.post('/login', asyncHandler(async (req: Request, res: Response) => {
   const isMatch = await bcrypt.compare(password, user.password);
   if (!isMatch) {
     return res.status(401).json({ error: 'Invalid credentials' });
-  }  const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
-  res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+  }  // Generate JWT token with all required user info
+  const tokenPayload = {
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    name: user.name
+  };
+  const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '7d' });
+  res.json({ token, user: tokenPayload });
 }));
 
 // CRUD для объявлений
@@ -253,9 +258,8 @@ app.get('/categories', asyncHandler(async (req: Request, res: Response) => {
   res.json(categories);
 }));
 
-app.post('/categories', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
-  // @ts-ignore
-  if (req.user.role !== 'admin') {
+app.post('/categories', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {  // @ts-ignore
+  if (req.user.role !== UserRole.ADMIN) {
     return res.status(403).json({ error: 'Только администратор может создавать категории' });
   }
   
@@ -265,9 +269,8 @@ app.post('/categories', authMiddleware as any, asyncHandler(async (req: Request,
   res.status(201).json(category);
 }));
 
-app.delete('/categories/:id', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
-  // @ts-ignore
-  if (req.user.role !== 'admin') {
+app.delete('/categories/:id', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {  // @ts-ignore
+  if (req.user.role !== UserRole.ADMIN) {
     return res.status(403).json({ error: 'Только администратор может удалять категории' });
   }
 

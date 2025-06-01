@@ -1,6 +1,7 @@
 import axios, { AxiosError } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NavigationContainerRef } from '@react-navigation/native';
+import { jwtDecode } from 'jwt-decode';
 
 const API_URL = 'http://192.168.0.103:3000'; // Используйте ваш локальный IP
 
@@ -9,13 +10,33 @@ const api = axios.create({
 });
 
 // Добавляем токен в каждый запрос, если он есть
-api.interceptors.request.use(async (config) => {
-  const token = await AsyncStorage.getItem('token');
-  if (token) {
-    config.headers = config.headers || {};
-    config.headers['Authorization'] = `Bearer ${token}`;
+api.interceptors.request.use(async (config) => {  try {
+    const token = await AsyncStorage.getItem('token');
+    if (token) {
+      // Log token for debugging (remove in production)
+      console.log('Token from storage:', token);
+      
+      try {
+        // Try to decode the token first to verify it's valid
+        const decoded = jwtDecode(token);
+        if (decoded) {
+          config.headers = config.headers || {};
+          config.headers['Authorization'] = `Bearer ${token}`;
+          console.log('Token successfully verified and added to headers');
+        }
+      } catch (decodeError) {
+        console.error('Invalid token in storage:', decodeError);
+        await AsyncStorage.removeItem('token');
+        if (navigationRef) {
+          navigationRef.navigate('LoginScreen');
+        }
+      }
+    }
+    return config;
+  } catch (error) {
+    console.error('Error processing token:', error);
+    return config;
   }
-  return config;
 });
 
 let navigationRef: NavigationContainerRef<any> | null = null;

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, Button, Alert } from 'react-native';
 import { getUsers } from './authApi';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { UserRole, roleTranslations } from '../constants/Roles';
 
 export default function UsersScreen({ navigation }: any) {
   const [users, setUsers] = useState<any[]>([]);
@@ -28,10 +29,10 @@ export default function UsersScreen({ navigation }: any) {
       ) : (
         <FlatList
           data={users}
-          keyExtractor={item => item.id.toString()}
-          renderItem={({ item }) => (
+          keyExtractor={item => item.id.toString()}          renderItem={({ item }) => (
             <View style={{ padding: 10, borderBottomWidth: 1 }}>
               <Text>{item.name} ({item.email})</Text>
+              <Text style={{ color: 'gray' }}>{roleTranslations[item.role as UserRole]}</Text>
             </View>
           )}
         />
