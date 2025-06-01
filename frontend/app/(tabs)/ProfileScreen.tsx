@@ -10,6 +10,7 @@ import { decodeToken } from '../utils/tokenUtils';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { ProfileStackParamList } from '../../types/navigation';
+import { EmployeeRegistrationModal } from '../../components/EmployeeRegistrationModal';
 
 interface ProfileUser {
   id: number;
@@ -424,88 +425,7 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
     setEmployeePassword('');
     setEmployeeRole('');
     setEmployeeError('');
-  };
-
-  // Employee Registration Modal
-  const EmployeeRegistrationModal = () => (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={showEmployeeRegistration}
-      onRequestClose={() => setShowEmployeeRegistration(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalView}>
-          <Text style={styles.modalTitle}>Регистрация сотрудника</Text>
-          
-          <TextInput
-            style={styles.input}
-            placeholder="Имя сотрудника"
-            value={employeeName}
-            onChangeText={setEmployeeName}
-          />
-          
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            value={employeeEmail}
-            onChangeText={setEmployeeEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-          
-          <TextInput
-            style={styles.input}
-            placeholder="Пароль"
-            value={employeePassword}
-            onChangeText={setEmployeePassword}
-            secureTextEntry
-          />
-          
-          <View style={styles.roleButtons}>
-            {employeeRoles.map((role) => (
-              <TouchableOpacity
-                key={role}
-                style={[
-                  styles.roleButton,
-                  employeeRole === role && styles.roleButtonSelected
-                ]}
-                onPress={() => setEmployeeRole(role)}
-              >
-                <Text style={[
-                  styles.roleButtonText,
-                  employeeRole === role && styles.roleButtonTextSelected
-                ]}>{role}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {employeeError ? (
-            <Text style={styles.errorText}>{employeeError}</Text>
-          ) : null}
-
-          <View style={styles.modalButtons}>
-            <TouchableOpacity
-              style={[styles.button, styles.saveButton]}
-              onPress={handleEmployeeRegistration}
-            >
-              <Text style={styles.buttonText}>Зарегистрировать</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.button, styles.closeButton]}
-              onPress={() => {
-                setShowEmployeeRegistration(false);
-                resetEmployeeForm();
-              }}
-            >
-              <Text style={styles.buttonText}>Отмена</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
+  };  // Employee registration modal has been moved to a separate component
 
   const handleLogout = async () => {
     try {
@@ -516,6 +436,35 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
       }
     } catch (e) {
       console.error('Error during logout:', e);
+    }
+  };
+
+  // Функция для регистрации сотрудника (новая версия)
+  const handleEmployeeSubmit = async () => {
+    if (!employeeName || !employeeEmail || !employeePassword || !employeeRole) {
+      setEmployeeError('Пожалуйста, заполните все поля');
+      return;
+    }
+
+    try {
+      const response = await api.post('/register-employee', {
+        name: employeeName,
+        email: employeeEmail,
+        password: employeePassword,
+        role: employeeRole,
+      });
+
+      if (response.status === 200) {
+        setShowEmployeeRegistration(false);
+        // Reset form
+        setEmployeeName('');
+        setEmployeeEmail('');
+        setEmployeePassword('');
+        setEmployeeRole('');
+        setEmployeeError('');
+      }
+    } catch (error: any) {
+      setEmployeeError(error.response?.data?.message || 'Ошибка при регистрации сотрудника');
     }
   };
 
@@ -586,7 +535,24 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
           </Modal>
 
           {/* Модальное окно регистрации сотрудника */}
-          <EmployeeRegistrationModal />
+          <EmployeeRegistrationModal
+            visible={showEmployeeRegistration}
+            onClose={() => {
+              setShowEmployeeRegistration(false);
+              setEmployeeError('');
+            }}
+            onSubmit={handleEmployeeSubmit}
+            employeeName={employeeName}
+            setEmployeeName={setEmployeeName}
+            employeeEmail={employeeEmail}
+            setEmployeeEmail={setEmployeeEmail}
+            employeePassword={employeePassword}
+            setEmployeePassword={setEmployeePassword}
+            employeeRole={employeeRole}
+            setEmployeeRole={setEmployeeRole}
+            employeeError={employeeError}
+            employeeRoles={employeeRoles}
+          />
 
           {/* Модальное окно поставок */}
           <SupplyModal />

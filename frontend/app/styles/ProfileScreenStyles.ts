@@ -67,16 +67,13 @@ export const styles = StyleSheet.create({
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
   },
-
   // Modal styles
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    marginTop: 20,
-  },
   modalOverlay: {
-    flex: 1,
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -84,11 +81,10 @@ export const styles = StyleSheet.create({
   },
   modalView: {
     backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 35,
     width: '100%',
     maxWidth: 400,
-    alignItems: 'center',
+    borderRadius: 20,
+    paddingVertical: 20,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -101,9 +97,15 @@ export const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 20,
-    color: '#333',
+    marginBottom: 15,
     textAlign: 'center',
+    color: '#333',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    marginTop: 20,
   },
   input: {
     width: '100%',
@@ -111,42 +113,88 @@ export const styles = StyleSheet.create({
     borderColor: '#ddd',
     borderRadius: 8,
     padding: 12,
-    marginBottom: 16,
+    marginBottom: 15,
+    backgroundColor: '#fff',
     fontSize: 16,
+    elevation: 0,
+    minHeight: 48,
   },
 
   // Role selection styles
   roleButtons: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
     marginBottom: 20,
-    flexWrap: 'wrap',
-    gap: 8,
   },
   roleButton: {
-    flex: 1,
-    minWidth: '30%',
-    backgroundColor: '#f0f0f0',
-    padding: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
     borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    marginBottom: 10,
+    minWidth: '30%',
   },
   roleButtonSelected: {
-    backgroundColor: '#2196F3',
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
   },
   roleButtonText: {
+    textAlign: 'center',
     fontSize: 14,
-    color: '#333',
   },
   roleButtonTextSelected: {
     color: '#fff',
   },
-  label: {
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingHorizontal: 20,
+    marginTop: 10,
+  },
+  button: {
+    flex: 1,
+    marginHorizontal: 5,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    minWidth: 120,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 8,
+  },
+  saveButton: {
+    backgroundColor: '#4CAF50',
+    flex: 1,
+    marginRight: 8,
+  },
+  closeButton: {
+    backgroundColor: '#f44336',
+    flex: 1,
+    marginLeft: 8,
+  },
+  cancelButton: {
+    backgroundColor: '#f2f2f2',
+  },
+  // Text styles
+  buttonText: {
+    color: '#fff',
+    textAlign: 'center',
     fontSize: 16,
-    marginBottom: 8,
+    fontWeight: '600',
+  },
+  cancelButtonText: {
     color: '#333',
-  },  // Text styles
+  },
   menuText: {
     fontSize: 16,
     color: '#333',
@@ -156,11 +204,6 @@ export const styles = StyleSheet.create({
     color: 'red',
     marginBottom: 8,
     fontSize: 14,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
   },
   sectionTitle: {
     fontSize: 18,
@@ -189,25 +232,8 @@ export const styles = StyleSheet.create({
   menuIcon: {
     fontSize: 24,
     marginRight: 16,
-  },  button: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    minWidth: 120,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginHorizontal: 8,
   },
-  saveButton: {
-    backgroundColor: '#4CAF50',
-    flex: 1,
-    marginRight: 8,
-  },
-  closeButton: {
-    backgroundColor: '#f44336',
-    flex: 1,
-    marginLeft: 8,
-  },  // Input styles
+  // Input styles
   picker: {
     height: 50,
     marginHorizontal: -8,
