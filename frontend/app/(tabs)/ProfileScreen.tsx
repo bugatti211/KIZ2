@@ -387,45 +387,14 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
       </View>
     </Modal>
   );
-
-  // Функция для регистрации сотрудника
-  const handleEmployeeRegistration = async () => {
-    setEmployeeError('');
-    
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(employeeEmail)) {
-      setEmployeeError('Пожалуйста, введите корректный email адрес');
-      return;
-    }    // Validate password length
-    if (employeePassword.length < 6) {
-      setEmployeeError('Пароль должен содержать минимум 6 символов');
-      return;
-    }
-
-    try {
-      await api.post('/users/register-employee', {
-        name: employeeName,
-        email: employeeEmail,
-        password: employeePassword,
-        role: employeeRole
-      });
-      
-      Alert.alert('Успех', 'Сотрудник успешно зарегистрирован');
-      setShowEmployeeRegistration(false);
-      resetEmployeeForm();
-    } catch (e: any) {
-      setEmployeeError(e.response?.data?.error || 'Ошибка при регистрации сотрудника');
-    }
-  };
-
+  // Reset employee form fields
   const resetEmployeeForm = () => {
     setEmployeeName('');
     setEmployeeEmail('');
     setEmployeePassword('');
     setEmployeeRole('');
     setEmployeeError('');
-  };  // Employee registration modal has been moved to a separate component
+  };
 
   const handleLogout = async () => {
     try {
@@ -438,33 +407,55 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
       console.error('Error during logout:', e);
     }
   };
-
   // Функция для регистрации сотрудника (новая версия)
   const handleEmployeeSubmit = async () => {
+    // Проверяем заполнение всех полей
     if (!employeeName || !employeeEmail || !employeePassword || !employeeRole) {
       setEmployeeError('Пожалуйста, заполните все поля');
       return;
     }
 
-    try {
-      const response = await api.post('/register-employee', {
+    // Валидация email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(employeeEmail)) {
+      setEmployeeError('Пожалуйста, введите корректный email адрес');
+      return;
+    }
+
+    // Валидация пароля
+    if (employeePassword.length < 6) {
+      setEmployeeError('Пароль должен содержать минимум 6 символов');
+      return;
+    }
+
+    // Валидация имени
+    if (employeeName.length < 2) {
+      setEmployeeError('Имя должно содержать минимум 2 символа');
+      return;
+    }    try {
+      const response = await api.post('/users/register-employee', {
         name: employeeName,
         email: employeeEmail,
         password: employeePassword,
         role: employeeRole,
       });
 
-      if (response.status === 200) {
-        setShowEmployeeRegistration(false);
-        // Reset form
-        setEmployeeName('');
-        setEmployeeEmail('');
-        setEmployeePassword('');
-        setEmployeeRole('');
-        setEmployeeError('');
-      }
+      Alert.alert('Успех', 'Сотрудник успешно зарегистрирован', [
+        {
+          text: 'OK',
+          onPress: () => {
+            setShowEmployeeRegistration(false);
+            resetEmployeeForm();
+          }
+        }
+      ]);
     } catch (error: any) {
-      setEmployeeError(error.response?.data?.message || 'Ошибка при регистрации сотрудника');
+      console.error('Employee registration error:', error.response?.data);
+      setEmployeeError(
+        error.response?.data?.error || 
+        error.response?.data?.message || 
+        'Ошибка при регистрации сотрудника. Проверьте введенные данные.'
+      );
     }
   };
 
