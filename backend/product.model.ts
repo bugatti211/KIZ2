@@ -44,13 +44,12 @@ Product.init(
     categoryId: {
       type: DataTypes.INTEGER,
       allowNull: false,
-    },
-    description: {
-      type: DataTypes.STRING(200),
+    },    description: {
+      type: DataTypes.TEXT,
       allowNull: false,
     },
     recommendations: {
-      type: DataTypes.STRING(200),
+      type: DataTypes.TEXT,
       allowNull: false,
     },
     price: {
