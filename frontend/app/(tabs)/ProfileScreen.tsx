@@ -527,7 +527,7 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
                 {renderMenuItem('👤', 'Личные данные', () => setShowPersonalInfo(true))}
                 {renderMenuItem('🛍️', 'Мои заказы', () => router.push('/(tabs)/OrdersScreen'))}                {renderMenuItem('📦', 'Управление товарами', () => navigationNative.navigate('ProductManagementScreen'))}
                 {renderMenuItem('📋', 'Поставки', () => setShowSupplyModal(true))}
-                {renderMenuItem('💰', 'Оффлайн-продажи', () => router.push('/(tabs)/OfflineSalesScreen'))}
+                {renderMenuItem('💰', 'Оффлайн-продажи', () => navigationNative.navigate('OfflineSalesScreen'))}
                 {renderMenuItem('⚖️', 'Объявления на модерацию', () => router.push('/(tabs)/AdsScreen'))}
                 {renderMenuItem('👥', 'Регистрация сотрудника', () => router.push('/(auth)/register'))}
                 {renderMenuItem('🚪', 'Выйти', handleLogout, '#FFE5E5')}
