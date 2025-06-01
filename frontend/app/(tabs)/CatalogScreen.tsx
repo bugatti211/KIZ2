@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import CatalogContent from '../../components/CatalogContent';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -26,24 +27,19 @@ interface Category {
   name: string;
 }
 
-interface Product {
-  id: string;
-  name: string;
-  categoryId: string;
-  category: Category;
-  description: string;
-  price: number;
-  stock: number;
-  active: boolean;
-}
-
 export default function CatalogScreen() {
   const router = useRouter();
   const navigation = useNavigation<CatalogScreenNavigationProp>();
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);  const [categories, setCategories] = useState<Category[]>([]);
+  const [products, setProducts] = useState<Array<{
+    id: string;
+    name: string;
+    description?: string;
+    categoryId: string;
+    price: number;
+    active: boolean;
+  }>>([]);
+  const [filteredCategories, setFilteredCategories] = useState<Category[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -81,19 +77,23 @@ export default function CatalogScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  };  const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   const handleSearch = (text: string) => {
     setSearchQuery(text);
     if (!text.trim()) {
-      setFilteredProducts(products);
+      setIsSearching(false);
+      setFilteredCategories(categories);
       return;
     }
-    const filtered = products.filter(product => 
-      product.name.toLowerCase().includes(text.toLowerCase()) ||
-      product.category.name.toLowerCase().includes(text.toLowerCase())
+    setIsSearching(true);
+    const query = text.toLowerCase().trim();
+    const matchingProducts = products.filter(product => 
+      product.name.toLowerCase().includes(query) || 
+      product.description?.toLowerCase().includes(query)
     );
-    setFilteredProducts(filtered);
+    setFilteredProducts(matchingProducts);
   };
 
   const handleDeleteCategory = (categoryId: string) => {
@@ -145,11 +145,28 @@ export default function CatalogScreen() {
   const handleCategoryPress = (categoryId: string, category: string) => {
     navigation.navigate('CategoryProductsScreen', { categoryId, category });
   };
+  const fetchProducts = async () => {
+    try {
+      const response = await api.get('/products');
+      setProducts(response.data.filter((p: any) => p.active));
+    } catch (err: any) {
+      console.error('Ошибка загрузки товаров:', err);
+      setProducts([]);
+    }
+  };
 
   useEffect(() => {
-    checkAdminStatus();
-    fetchCategories();
+    const loadData = async () => {
+      setLoading(true);
+      await Promise.all([checkAdminStatus(), fetchCategories(), fetchProducts()]);
+      setLoading(false);
+    };
+    loadData();
   }, [checkAdminStatus]);
+
+  useEffect(() => {
+    setFilteredCategories(categories);
+  }, [categories]);
 
   if (loading) {
     return (
@@ -174,7 +191,7 @@ export default function CatalogScreen() {
         <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Поиск категорий и товаров..."
+          placeholder="Поиск товаров..."
           value={searchQuery}
           onChangeText={handleSearch}
         />
@@ -183,35 +200,64 @@ export default function CatalogScreen() {
             <Ionicons name="close-circle" size={20} color="#666" />
           </TouchableOpacity>
         ) : null}
-      </View>
-
-      <ScrollView>
-        {categories.length === 0 && !error ? (
-          <Text style={styles.emptyText}>Нет доступных категорий</Text>
-        ) : (          categories.map((category) => (
-            <TouchableOpacity 
-              key={category.id} 
-              style={styles.categoryBlock}              onPress={() => navigation.navigate('CategoryProductsScreen', {
-                categoryId: category.id,
-                category: category.name
-              })}
-            >
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={styles.categoryText}>{category.name}</Text>
-                {isAdmin && (
-                  <TouchableOpacity
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      handleDeleteCategory(category.id);
-                    }}
-                    style={{ padding: 4 }}
-                  >
-                    <Ionicons name="trash-outline" size={20} color="#d32f2f" />
-                  </TouchableOpacity>
-                )}
-              </View>
-            </TouchableOpacity>
-          ))
+      </View>      <ScrollView>
+        {isSearching ? (
+          // Показываем результаты поиска товаров
+          filteredProducts.length === 0 ? (
+            <Text style={styles.emptyText}>Товары не найдены</Text>
+          ) : (
+            filteredProducts.map((product) => (
+              <TouchableOpacity 
+                key={product.id} 
+                style={styles.productBlock}
+                onPress={() => navigation.navigate('ProductCardScreen', { product })}
+              >
+                <View style={styles.productContent}>
+                  <Text style={styles.productName}>{product.name}</Text>
+                  <Text style={styles.categoryLabel}>
+                    {categories.find(c => c.id === product.categoryId)?.name || ''}
+                  </Text>
+                  {product.description && (
+                    <Text style={styles.productDescription} numberOfLines={2}>
+                      {product.description}
+                    </Text>
+                  )}
+                  <Text style={styles.productPrice}>{product.price} ₽</Text>
+                </View>
+              </TouchableOpacity>
+            ))
+          )
+        ) : (
+          // Показываем список категорий
+          filteredCategories.length === 0 && !error ? (
+            <Text style={styles.emptyText}>Нет доступных категорий</Text>
+          ) : (
+            filteredCategories.map((category) => (
+              <TouchableOpacity 
+                key={category.id} 
+                style={styles.categoryBlock}
+                onPress={() => navigation.navigate('CategoryProductsScreen', {
+                  categoryId: category.id,
+                  category: category.name
+                })}
+              >
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={styles.categoryText}>{category.name}</Text>
+                  {isAdmin && (
+                    <TouchableOpacity
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleDeleteCategory(category.id);
+                      }}
+                      style={{ padding: 4 }}
+                    >
+                      <Ionicons name="trash-outline" size={20} color="#d32f2f" />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </TouchableOpacity>
+            ))
+          )
         )}
       </ScrollView>
 
@@ -421,5 +467,42 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 4,
+  },
+  productBlock: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  productContent: {
+    flex: 1,
+  },
+  productName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#222',
+    marginBottom: 4,
+  },
+  categoryLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 4,
+  },
+  productDescription: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+  },
+  productPrice: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2196f3',
   },
 });
