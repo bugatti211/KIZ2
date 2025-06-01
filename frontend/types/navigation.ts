@@ -13,13 +13,13 @@ export type ProfileStackParamList = {
   NewSupply: undefined;
   SupplyHistory: undefined;
   AddEditProductScreen: { product?: any };
+  UserOrdersScreen: undefined;
 };
 
 export type TabParamList = {
   AdsScreen: undefined;
   catalog: NavigatorScreenParams<RootStackParamList>;
-  consult: undefined;
-  cart: undefined;
+  consult: undefined;  cart: undefined;
   orders: undefined;
   profile: NavigatorScreenParams<ProfileStackParamList>;
 };

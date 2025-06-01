@@ -17,6 +17,7 @@ import NewSupplyScreen from './NewSupplyScreen';
 import SupplyHistoryScreen from './SupplyHistoryScreen';
 import OrdersScreen from './OrdersScreen';
 import OfflineSalesScreen from './OfflineSalesScreen';
+import UserOrdersScreen from './UserOrdersScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -31,6 +32,21 @@ function ProfileStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="ProfileMain" component={ProfileScreen} options={{ title: 'Профиль', headerShown: true }}/>
+      <Stack.Screen 
+        name="UserOrdersScreen" 
+        component={UserOrdersScreen} 
+        options={{ 
+          title: 'Мои заказы',
+          headerShown: true,
+          headerStyle: {
+            backgroundColor: '#fff',
+          },
+          headerTintColor: '#000',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          }
+        }} 
+      />
       <Stack.Screen 
         name="OfflineSalesScreen" 
         component={OfflineSalesScreen} 

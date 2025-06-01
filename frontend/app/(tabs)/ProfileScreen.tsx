@@ -561,9 +561,9 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
                 <Text style={styles.role}>{roleTranslations[user.role as UserRole] || user.role}</Text>
               </View>
               {/* Меню действий */}
-              <View style={styles.menuContainer}>
-                {renderMenuItem('👤', 'Личные данные', () => setShowPersonalInfo(true))}
-                {renderMenuItem('🛍️', 'Мои заказы', () => router.push('/(tabs)/OrdersScreen'))}                {renderMenuItem('📦', 'Управление товарами', () => navigationNative.navigate('ProductManagementScreen'))}
+              <View style={styles.menuContainer}>                {renderMenuItem('👤', 'Личные данные', () => setShowPersonalInfo(true))}
+                {renderMenuItem('🛍️', 'Мои заказы', () => navigationNative.navigate('UserOrdersScreen'))}
+                {renderMenuItem('📦', 'Управление товарами', () => navigationNative.navigate('ProductManagementScreen'))}
                 {renderMenuItem('📋', 'Поставки', () => setShowSupplyModal(true))}
                 {renderMenuItem('💰', 'Оффлайн-продажи', () => navigationNative.navigate('OfflineSalesScreen'))}
                 {renderMenuItem('⚖️', 'Объявления на модерацию', () => router.push('/(tabs)/AdsScreen'))}
