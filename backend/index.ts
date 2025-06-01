@@ -226,11 +226,13 @@ app.post('/ads', authMiddleware as any, asyncHandler(async (req: Request, res: R
 
 // Получить все утверждённые объявления
 app.get('/ads', asyncHandler(async (req: Request, res: Response) => {
+  // Only return ads that are both approved and not deleted
   const ads = await Ad.findAll({ 
     where: { 
       status: 'approved',
       deleted: false 
     }, 
+    order: [['createdAt', 'DESC']],
     include: [{ model: User, attributes: ['id', 'name', 'email'] }] 
   });
   res.json(ads);
@@ -242,9 +244,20 @@ app.get('/ads/moderation', authMiddleware as any, asyncHandler(async (req: Reque
   if (req.user.role !== UserRole.ADMIN) {
     return res.status(403).json({ error: 'Access denied' });
   }
+  // Для админа показываем все не удаленные объявления, отсортированные:
+  // - Сначала все в ожидании модерации
+  // - Затем подтвержденные
+  // - И в конце отклоненные
   const ads = await Ad.findAll({ 
     where: { deleted: false },
-    order: [['createdAt', 'DESC']],
+    order: [
+      [sequelizeInstance.literal(`CASE 
+        WHEN status = 'pending' THEN 1 
+        WHEN status = 'approved' THEN 2 
+        WHEN status = 'rejected' THEN 3 
+        END`), 'ASC'],
+      ['createdAt', 'DESC']
+    ],
     include: [{ model: User, attributes: ['id', 'name', 'email'] }] 
   });
   res.json(ads);

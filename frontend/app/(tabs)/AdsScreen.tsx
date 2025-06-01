@@ -6,6 +6,30 @@ import { useIsFocused } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
+type AdStatus = 'pending' | 'approved' | 'rejected';
+
+interface Ad {
+  id: number;
+  text: string;
+  phone: string;
+  status: AdStatus;
+  deleted: boolean;
+  createdAt: string;
+  user?: {
+    id: number;
+    name: string;
+    email: string;
+  };
+}
+
+interface ApiError {
+  response?: {
+    data?: {
+      error?: string;
+    };
+  };
+}
+
 export default function AdsScreen() {
   const router = useRouter();
   const [showAuth, setShowAuth] = useState(false);
@@ -13,7 +37,7 @@ export default function AdsScreen() {
   const [isAuthChecked, setIsAuthChecked] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [ads, setAds] = useState<any[]>([]);
+  const [ads, setAds] = useState<Ad[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const isFocused = useIsFocused();
@@ -21,15 +45,84 @@ export default function AdsScreen() {
   const fetchAds = async () => {
     setLoading(true);
     setError('');
-    try {
-      const endpoint = isAdmin ? '/ads/moderation' : '/ads';
-      const res = await api.get(endpoint);
-      setAds(res.data);
-    } catch (e: any) {
-      setError(e.message || 'Ошибка загрузки объявлений');
+    try {      const endpoint = isAdmin ? '/ads/moderation' : '/ads';
+      const response = await api.get(endpoint);
+      const responseData = response.data as Ad[];
+        // Filter ads based on status and authorization
+      const filteredAds = responseData.filter(ad => {
+        // Remove deleted ads for everyone
+        if (ad.deleted) return false;
+        
+        if (!isAuthenticated) {
+          // For unauthorized users: show only approved ads
+          return ad.status === 'approved';
+        } else if (isAdmin) {
+          // For admins: show pending and approved ads
+          return ad.status !== 'rejected';
+        } else {
+          // For authorized non-admin users: show only approved ads
+          return ad.status === 'approved';
+        }
+      });
+        const sortedAds = filteredAds.sort((a, b) => {
+        if (isAdmin && a.status !== b.status) {
+          // For admin, show pending first, then approved
+          return a.status === 'pending' ? -1 : 1;
+        }
+        // Sort by date (newest first)
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+      
+      setAds(sortedAds);
+    } catch (e) {
+      const error = e as ApiError;
+      setError(error.response?.data?.error || 'Ошибка загрузки объявлений');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleApprove = async (adId: number) => {
+    try {
+      await api.post(`/ads/${adId}/approve`);
+      await fetchAds();
+    } catch (e) {
+      const error = e as ApiError;
+      Alert.alert('Ошибка', error.response?.data?.error || 'Не удалось подтвердить объявление');
+    }
+  };
+
+  const handleReject = async (adId: number) => {
+    try {
+      await api.post(`/ads/${adId}/reject`);
+      await fetchAds();
+    } catch (e) {
+      const error = e as ApiError;
+      Alert.alert('Ошибка', error.response?.data?.error || 'Не удалось отклонить объявление');
+    }
+  };
+
+  const handleDelete = async (adId: number) => {
+    Alert.alert(
+      'Подтверждение',
+      'Вы действительно хотите удалить это объявление?',
+      [
+        { text: 'Отмена', style: 'cancel' },
+        {
+          text: 'Удалить',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.delete(`/ads/${adId}`);
+              await fetchAds();
+            } catch (e) {
+              const error = e as ApiError;
+              Alert.alert('Ошибка', error.response?.data?.error || 'Не удалось удалить объявление');
+            }
+          }
+        }
+      ]
+    );
   };
 
   useEffect(() => {
@@ -47,59 +140,18 @@ export default function AdsScreen() {
     })();
   }, []);
 
+  // Fetch ads when admin status changes or screen is focused
   useEffect(() => {
-    fetchAds();
-  }, []);
-
-  useEffect(() => {
-    if (isFocused) fetchAds();
-  }, [isFocused]);
+    if (isAuthChecked) {
+      fetchAds();
+    }
+  }, [isAdmin, isAuthChecked, isFocused]);
 
   if (!isAuthChecked) return null;
 
   const handleCreateAd = () => {
     router.push('/(auth)/login');
     setShowAuth(false);
-  };
-
-  const handleApprove = async (adId: number) => {
-    try {
-      await api.post(`/ads/${adId}/approve`);
-      fetchAds();
-    } catch (error: any) {
-      Alert.alert('Ошибка', error.response?.data?.error || 'Не удалось подтвердить объявление');
-    }
-  };
-
-  const handleReject = async (adId: number) => {
-    try {
-      await api.post(`/ads/${adId}/reject`);
-      fetchAds();
-    } catch (error: any) {
-      Alert.alert('Ошибка', error.response?.data?.error || 'Не удалось отклонить объявление');
-    }
-  };
-
-  const handleDelete = async (adId: number) => {
-    Alert.alert(
-      'Подтверждение',
-      'Вы действительно хотите удалить это объявление?',
-      [
-        { text: 'Отмена', style: 'cancel' },
-        {
-          text: 'Удалить',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await api.delete(`/ads/${adId}`);
-              fetchAds();
-            } catch (error: any) {
-              Alert.alert('Ошибка', error.response?.data?.error || 'Не удалось удалить объявление');
-            }
-          }
-        }
-      ]
-    );
   };
 
   return (
@@ -134,11 +186,8 @@ export default function AdsScreen() {
                       </TouchableOpacity>
                     </>
                   ) : (
-                    <View style={styles.statusContainer}>
-                      <Text style={styles.statusText}>
-                        {item.status === 'approved' ? 'Подтверждено' : 'Отклонено'}
-                      </Text>
-                      {item.status === 'approved' && (
+                    <View style={styles.statusContainer}>                      <Text style={styles.statusText}>Подтверждено</Text>
+                      {(
                         <TouchableOpacity
                           style={[styles.moderationButton, styles.deleteButton]}
                           onPress={() => handleDelete(item.id)}
