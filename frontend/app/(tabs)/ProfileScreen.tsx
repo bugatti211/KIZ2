@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Button, TextInput, FlatList, Modal, TouchableOpacity, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform, Image } from 'react-native';
+import { View, Text, Button, TextInput, FlatList, Modal, TouchableOpacity, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform, Image, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../api';
 import { useAuthModal } from '../AuthContext';
@@ -26,6 +26,10 @@ interface ProfileScreenProps {
 }
 
 type ProfileScreenNavigationProp = NativeStackNavigationProp<ProfileStackParamList>;
+
+type EmployeeRole = 'Продавец' | 'Бухгалтер' | 'Грузчик';
+
+const employeeRoles: EmployeeRole[] = ['Продавец', 'Бухгалтер', 'Грузчик'];
 
 export default function ProfileScreen({ setIsAuthenticated, navigation, route }: ProfileScreenProps): React.JSX.Element {
   const router = useRouter();
@@ -399,9 +403,6 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
     }
 
     try {
-      const token = await AsyncStorage.getItem('token');
-      if (!token) throw new Error('Требуется авторизация');
-      
       await api.post('/users/register-employee', {
         name: employeeName,
         email: employeeEmail,
@@ -409,44 +410,115 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
         role: employeeRole
       });
       
-      // Очистить форму и закрыть модальное окно
+      Alert.alert('Успех', 'Сотрудник успешно зарегистрирован');
       setShowEmployeeRegistration(false);
-      setEmployeeName('');
-      setEmployeeEmail('');
-      setEmployeePassword('');
+      resetEmployeeForm();
     } catch (e: any) {
-      setEmployeeError(e.message || 'Ошибка при регистрации сотрудника');
+      setEmployeeError(e.response?.data?.error || 'Ошибка при регистрации сотрудника');
     }
-  };  const handleLogout = async () => {
+  };
+
+  const resetEmployeeForm = () => {
+    setEmployeeName('');
+    setEmployeeEmail('');
+    setEmployeePassword('');
+    setEmployeeRole('');
+    setEmployeeError('');
+  };
+
+  // Employee Registration Modal
+  const EmployeeRegistrationModal = () => (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={showEmployeeRegistration}
+      onRequestClose={() => setShowEmployeeRegistration(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalView}>
+          <Text style={styles.modalTitle}>Регистрация сотрудника</Text>
+          
+          <TextInput
+            style={styles.input}
+            placeholder="Имя сотрудника"
+            value={employeeName}
+            onChangeText={setEmployeeName}
+          />
+          
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            value={employeeEmail}
+            onChangeText={setEmployeeEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+          
+          <TextInput
+            style={styles.input}
+            placeholder="Пароль"
+            value={employeePassword}
+            onChangeText={setEmployeePassword}
+            secureTextEntry
+          />
+          
+          <View style={styles.roleButtons}>
+            {employeeRoles.map((role) => (
+              <TouchableOpacity
+                key={role}
+                style={[
+                  styles.roleButton,
+                  employeeRole === role && styles.roleButtonSelected
+                ]}
+                onPress={() => setEmployeeRole(role)}
+              >
+                <Text style={[
+                  styles.roleButtonText,
+                  employeeRole === role && styles.roleButtonTextSelected
+                ]}>{role}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {employeeError ? (
+            <Text style={styles.errorText}>{employeeError}</Text>
+          ) : null}
+
+          <View style={styles.modalButtons}>
+            <TouchableOpacity
+              style={[styles.button, styles.saveButton]}
+              onPress={handleEmployeeRegistration}
+            >
+              <Text style={styles.buttonText}>Зарегистрировать</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.button, styles.closeButton]}
+              onPress={() => {
+                setShowEmployeeRegistration(false);
+                resetEmployeeForm();
+              }}
+            >
+              <Text style={styles.buttonText}>Отмена</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+
+  const handleLogout = async () => {
     try {
-      // Remove token first to prevent race conditions
       await AsyncStorage.removeItem('token');
-      
-      // Reset user state
       setUser(null);
       if (setIsAuthenticated) {
         setIsAuthenticated(false);
       }
-      
-      // Emit token change event to update all components that depend on auth status
-      authEvents.emit(AUTH_EVENTS.TOKEN_CHANGE);
-      
-      // Navigate using replace to prevent back navigation after logout
-      router.replace({
-        pathname: "/(tabs)/AdsScreen"
-      });
     } catch (e) {
       console.error('Error during logout:', e);
     }
   };
 
-  const handleLogin = () => {
-    router.push('/(auth)/login');
-  };
-
-  const handleRegister = () => {
-    router.push('/(auth)/register');
-  };
   return (
     <ScrollView style={styles.container}>
       {isLoading ? (
@@ -455,7 +527,7 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
         </View>
       ) : (
         <>
-          {/* Модальное окно редактирования личных данных */}
+          {/* Existing modals */}
           <Modal
             animationType="slide"
             transparent={true}
@@ -511,7 +583,12 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
                 </View>
               </View>
             </View>
-          </Modal>          {/* Модальное окно поставок */}
+          </Modal>
+
+          {/* Модальное окно регистрации сотрудника */}
+          <EmployeeRegistrationModal />
+
+          {/* Модальное окно поставок */}
           <SupplyModal />
 
           {user ? (
@@ -529,7 +606,7 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
                 {renderMenuItem('📋', 'Поставки', () => setShowSupplyModal(true))}
                 {renderMenuItem('💰', 'Оффлайн-продажи', () => navigationNative.navigate('OfflineSalesScreen'))}
                 {renderMenuItem('⚖️', 'Объявления на модерацию', () => router.push('/(tabs)/AdsScreen'))}
-                {renderMenuItem('👥', 'Регистрация сотрудника', () => router.push('/(auth)/register'))}
+                {renderMenuItem('👥', 'Регистрация сотрудника', () => setShowEmployeeRegistration(true))}
                 {renderMenuItem('🚪', 'Выйти', handleLogout, '#FFE5E5')}
               </View>
             </>
