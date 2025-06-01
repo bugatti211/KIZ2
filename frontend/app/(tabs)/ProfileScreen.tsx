@@ -318,11 +318,18 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
       if (title === 'Объявления на модерацию' && user.role !== UserRole.ADMIN) {
         return null;
       }
+        // Только для админа, продавцов и грузчиков
+      if (title === 'Управление товарами' || title === 'Оффлайн-продажи') {
+        if (user.role !== UserRole.ADMIN && user.role !== UserRole.SELLER) {
+          return null;
+        }
+      }
       
-      // Только для админа и продавцов
-      if ((title === 'Управление товарами' || title === 'Поставки' || title === 'Оффлайн-продажи') 
-          && user.role !== UserRole.ADMIN && user.role !== UserRole.SELLER) {
-        return null;
+      // Поставки доступны админам, продавцам и грузчикам
+      if (title === 'Поставки') {
+        if (user.role !== UserRole.ADMIN && user.role !== UserRole.SELLER && user.role !== UserRole.LOADER) {
+          return null;
+        }
       }
     }
 

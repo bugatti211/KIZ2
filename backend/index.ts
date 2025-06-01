@@ -802,9 +802,8 @@ app.get('/orders', authMiddleware as any, asyncHandler(async (req: Request, res:
     const userId = req.user.id;
     // @ts-ignore
     const userRole = req.user.role;
-    
-    // Set up where clause based on user role
-    const whereClause = userRole === UserRole.ADMIN ? {} : { userId };
+      // Set up where clause based on user role - allow ADMIN, SELLER and LOADER to see all orders
+    const whereClause = [UserRole.ADMIN, UserRole.SELLER, UserRole.LOADER].includes(userRole) ? {} : { userId };
 
     const orders = await Order.findAll({
       where: whereClause,

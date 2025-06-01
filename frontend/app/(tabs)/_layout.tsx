@@ -149,10 +149,10 @@ function CatalogStack() {
 export default function TabLayout() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSeller, setIsSeller] = useState(false);
+  const [isLoader, setIsLoader] = useState(false);
   const [isStaff, setIsStaff] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [token, setToken] = useState<string | null>(null);
-
   const checkAdminStatus = useCallback(async () => {
     try {
       const currentToken = await AsyncStorage.getItem('token');
@@ -164,16 +164,18 @@ export default function TabLayout() {
           const tokenData = JSON.parse(atob(currentToken.split('.')[1]));
           setIsAdmin(tokenData.role === 'admin');
           setIsSeller(tokenData.role === 'seller');
+          setIsLoader(tokenData.role === 'loader');
           setIsStaff(['admin', 'seller', 'accountant', 'loader'].includes(tokenData.role));
         } catch (e) {
-          console.error('Error parsing token:', e);
-          setIsAdmin(false);
+          console.error('Error parsing token:', e);          setIsAdmin(false);
           setIsSeller(false);
+          setIsLoader(false);
           setIsStaff(false);
         }
       } else {
         setIsAdmin(false);
         setIsSeller(false);
+        setIsLoader(false);
         setIsStaff(false);
       }
     } catch (error) {
@@ -230,10 +232,9 @@ export default function TabLayout() {
           options={{
             title: 'Корзина',
             tabBarIcon: ({ color, size }) => <Ionicons name="cart" size={size} color={color} />,
-          }}
-        />
+          }}        />
       )}
-      {(isAdmin || isSeller) && (
+      {(isAdmin || isSeller || isLoader) && (
         <Tab.Screen
           name="orders"
           component={OrdersScreen}
