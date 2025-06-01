@@ -32,14 +32,17 @@ export default function ConsultScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
-  const [isAuthChecked, setIsAuthChecked] = useState(false);
-  useEffect(() => {
+  const [isAuthChecked, setIsAuthChecked] = useState(false);  useEffect(() => {
     const checkAuth = async () => {
       const token = await AsyncStorage.getItem('token');
       setIsAuthenticated(!!token);
       setIsAuthChecked(true);
       if (token) {
+        const tokenData = JSON.parse(atob(token.split('.')[1]));
+        chatHistoryService.setUserId(tokenData.id); // Set the user ID for chat history
         loadChatHistory();
+      } else {
+        chatHistoryService.setUserId(null); // Clear the user ID when not authenticated
       }
     };
     checkAuth();

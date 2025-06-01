@@ -63,13 +63,21 @@ export default function CatalogScreen() {
       setIsAdmin(false);
     }
   }, []);
-
   const fetchCategories = async () => {
     setLoading(true);
     try {
-      setError('');
-      const response = await api.get('/categories');
-      setCategories(response.data);
+      setError('');      const response = await api.get('/categories');
+      const token = await AsyncStorage.getItem('token');
+      let filteredCategories = response.data;
+      
+      // Фильтруем категорию "Поставки новые" для неавторизованных и обычных пользователей
+      if (!token || !isAdmin) {
+        filteredCategories = response.data.filter((category: Category) => 
+          category.name.toLowerCase() !== 'поставки новые'
+        );
+      }
+      
+      setCategories(filteredCategories);
     } catch (err: any) {
       console.error('Ошибка загрузки категорий:', err);
       setError('Не удалось загрузить категории. Проверьте подключение к интернету или попробуйте позже.');
@@ -77,7 +85,7 @@ export default function CatalogScreen() {
     } finally {
       setLoading(false);
     }
-  };  const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
+  };const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
   const handleSearch = (text: string) => {
@@ -141,8 +149,7 @@ export default function CatalogScreen() {
       setSaving(false);
     }
   };
-
-  const handleCategoryPress = (categoryId: string, category: string) => {
+  const handleCategoryPress = (categoryId: string, category: string): void => {
     navigation.navigate('CategoryProductsScreen', { categoryId, category });
   };
   const fetchProducts = async () => {

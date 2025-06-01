@@ -6,20 +6,29 @@ export interface ChatMessage {
   timestamp: number;
 }
 
-const CHAT_HISTORY_KEY = 'chat_history';
+const CHAT_HISTORY_KEY_PREFIX = 'chat_history_';
 const DAYS_TO_KEEP = 30;
 
 class ChatHistoryService {
+  private userId: string | null = null;
+
+  setUserId(id: string | null) {
+    this.userId = id;
+  }
+
+  private getStorageKey(): string {
+    return CHAT_HISTORY_KEY_PREFIX + (this.userId || 'anonymous');
+  }
+
   private async getChatHistory(): Promise<ChatMessage[]> {
     try {
-      const history = await AsyncStorage.getItem(CHAT_HISTORY_KEY);
+      const history = await AsyncStorage.getItem(this.getStorageKey());
       return history ? JSON.parse(history) : [];
     } catch (error) {
       console.error('Error loading chat history:', error);
       return [];
     }
   }
-
   async saveMessage(message: Omit<ChatMessage, 'timestamp'>): Promise<void> {
     try {
       const history = await this.getChatHistory();
@@ -35,7 +44,7 @@ class ChatHistoryService {
       const thirtyDaysAgo = Date.now() - (DAYS_TO_KEEP * 24 * 60 * 60 * 1000);
       const filteredHistory = history.filter(msg => msg.timestamp >= thirtyDaysAgo);
       
-      await AsyncStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(filteredHistory));
+      await AsyncStorage.setItem(this.getStorageKey(), JSON.stringify(filteredHistory));
     } catch (error) {
       console.error('Error saving message:', error);
       throw error;
@@ -52,10 +61,9 @@ class ChatHistoryService {
       return [];
     }
   }
-
   async clearHistory(): Promise<void> {
     try {
-      await AsyncStorage.removeItem(CHAT_HISTORY_KEY);
+      await AsyncStorage.removeItem(this.getStorageKey());
     } catch (error) {
       console.error('Error clearing chat history:', error);
       throw error;
