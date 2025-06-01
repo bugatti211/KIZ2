@@ -2,8 +2,9 @@ import { Model, DataTypes } from 'sequelize';
 import sequelize from './sequelize';
 import User from './user.model';
 import Product from './product.model';
+import Category from './category.model';
 
-export class Order extends Model {
+class Order extends Model {
   public id!: number;
   public userId!: number;
   public name!: string;
@@ -71,12 +72,14 @@ Order.init({
   tableName: 'orders'
 });
 
-export class OrderItem extends Model {
+class OrderItem extends Model {
   public id!: number;
   public orderId!: number;
   public productId!: number;
   public quantity!: number;
   public price!: number;
+  public createdAt!: Date;
+  public updatedAt!: Date;
 }
 
 OrderItem.init({
@@ -100,8 +103,7 @@ OrderItem.init({
       model: Product,
       key: 'id',
     },
-  },
-  quantity: {
+  },  quantity: {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: false,
   },
@@ -109,6 +111,14 @@ OrderItem.init({
     type: DataTypes.DECIMAL(10, 2),
     allowNull: false,
   },
+  createdAt: {
+    type: DataTypes.DATE,
+    allowNull: false,
+  },
+  updatedAt: {
+    type: DataTypes.DATE,
+    allowNull: false,
+  }
 }, {
   sequelize,
   modelName: 'OrderItem',
@@ -117,5 +127,6 @@ OrderItem.init({
 
 Order.hasMany(OrderItem, { as: 'items', foreignKey: 'orderId' });
 OrderItem.belongsTo(Product, { as: 'product', foreignKey: 'productId' });
+// Удаляем дублирующую ассоциацию с Category, так как она уже определена в product.model.ts
 
-export default Order;
+export { Order, OrderItem };

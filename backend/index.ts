@@ -712,9 +712,7 @@ app.get('/orders', authMiddleware as any, asyncHandler(async (req: Request, res:
         }]
       }],
       order: [['createdAt', 'DESC']]
-    });
-
-    const ordersWithByWeight = orders.map((order: Order) => {
+    });    const ordersWithByWeight = orders.map((order: Order) => {
       const plainOrder = order.get({ plain: true });
       return {
         ...plainOrder,
@@ -722,7 +720,7 @@ app.get('/orders', authMiddleware as any, asyncHandler(async (req: Request, res:
           ...item,
           product: {
             ...item.product,
-            isByWeight: item.product.category.name === 'На развес'
+            isByWeight: item.product?.category?.name === 'На развес' || false
           }
         }))
       };
