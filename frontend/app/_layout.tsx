@@ -47,6 +47,17 @@ export default function RootLayout() {
         <CartProvider>          <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="(auth)" />
+            <Stack.Screen name="create-ad" options={{ 
+              headerShown: true,
+              title: 'Создать объявление',
+              headerTintColor: '#000',
+              headerStyle: {
+                backgroundColor: '#fff',
+              },
+              headerTitleStyle: {
+                fontWeight: 'bold',
+              }
+            }} />
           </Stack>
         </CartProvider>
       </AuthProvider>

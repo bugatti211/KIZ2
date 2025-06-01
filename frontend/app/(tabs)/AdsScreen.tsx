@@ -3,13 +3,14 @@ import { View, Text, Modal, TouchableOpacity, StyleSheet, Pressable, FlatList, A
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../api';
 import { useIsFocused } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
-export default function AdsScreen() {
-  const router = useRouter();
+export default function AdsScreen() {  const router = useRouter();
   const [showAuth, setShowAuth] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [isAuthChecked, setIsAuthChecked] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [ads, setAds] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -27,11 +28,10 @@ export default function AdsScreen() {
       setLoading(false);
     }
   };
-
   useEffect(() => {
     (async () => {
       const token = await AsyncStorage.getItem('token');
-      if (!token) setShowAuth(true);
+      setIsAuthenticated(!!token);
       setIsAuthChecked(true);
     })();
   }, []);
@@ -45,6 +45,10 @@ export default function AdsScreen() {
   }, [isFocused]);
 
   if (!isAuthChecked) return null;
+  const handleCreateAd = () => {
+    router.push('/(auth)/login');
+    setShowAuth(false);
+  };
 
   return (
     <View style={{ flex: 1, padding: 20, backgroundColor: '#f7f7f7' }}>
@@ -70,9 +74,22 @@ export default function AdsScreen() {
                 <Text style={styles.adValue}>{item.User?.name || '—'}</Text>
               </View>
             </View>
-          )}
-        />
-      )}      <Modal visible={showAuth} animationType="fade" transparent>
+          )}        />
+      )}      {/* Floating Action Button */}
+      <TouchableOpacity
+        style={styles.createButton}
+        onPress={() => {
+          if (!isAuthenticated) {
+            setShowAuth(true);
+          } else {
+            router.push('/create-ad');
+          }
+        }}
+      >
+        <Ionicons name="add" size={24} color="#fff" />
+      </TouchableOpacity>
+
+      <Modal visible={showAuth} animationType="fade" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
@@ -198,9 +215,24 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#888',
     marginRight: 6,
-  },
-  adValue: {
+  },  adValue: {
     color: '#333',
     fontWeight: '500',
+  },
+  createButton: {
+    position: 'absolute',
+    right: 20,
+    bottom: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#4CAF50',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
   },
 });
