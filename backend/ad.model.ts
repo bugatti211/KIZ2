@@ -8,9 +8,10 @@ interface AdAttributes {
   phone: string;
   status: 'pending' | 'approved' | 'rejected';
   userId: number;
+  deleted: boolean;
 }
 
-interface AdCreationAttributes extends Optional<AdAttributes, 'id' | 'status'> {}
+interface AdCreationAttributes extends Optional<AdAttributes, 'id' | 'status' | 'deleted'> {}
 
 class Ad extends Model<AdAttributes, AdCreationAttributes> implements AdAttributes {
   public id!: number;
@@ -18,6 +19,7 @@ class Ad extends Model<AdAttributes, AdCreationAttributes> implements AdAttribut
   public phone!: string;
   public status!: 'pending' | 'approved' | 'rejected';
   public userId!: number;
+  public deleted!: boolean;
 }
 
 Ad.init(
@@ -45,12 +47,16 @@ Ad.init(
       allowNull: false,
       references: { model: User, key: 'id' },
     },
-  },
-  {
+    deleted: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    }
+  },  {
     sequelize,
     modelName: 'Ad',
     tableName: 'ads',
-    timestamps: false,
+    timestamps: true
   }
 );
 

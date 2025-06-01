@@ -226,13 +226,27 @@ app.post('/ads', authMiddleware as any, asyncHandler(async (req: Request, res: R
 
 // Получить все утверждённые объявления
 app.get('/ads', asyncHandler(async (req: Request, res: Response) => {
-  const ads = await Ad.findAll({ where: { status: 'approved' }, include: [{ model: User, attributes: ['id', 'name', 'email'] }] });
+  const ads = await Ad.findAll({ 
+    where: { 
+      status: 'approved',
+      deleted: false 
+    }, 
+    include: [{ model: User, attributes: ['id', 'name', 'email'] }] 
+  });
   res.json(ads);
 }));
 
-// Получить все объявления для модерации (только для администратора, но пока без ролей)
+// Получить все объявления для модерации (только для администратора)
 app.get('/ads/moderation', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
-  const ads = await Ad.findAll({ where: { status: 'pending' }, include: [{ model: User, attributes: ['id', 'name', 'email'] }] });
+  // @ts-ignore
+  if (req.user.role !== UserRole.ADMIN) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  const ads = await Ad.findAll({ 
+    where: { deleted: false },
+    order: [['createdAt', 'DESC']],
+    include: [{ model: User, attributes: ['id', 'name', 'email'] }] 
+  });
   res.json(ads);
 }));
 
@@ -252,6 +266,21 @@ app.post('/ads/:id/reject', authMiddleware as any, asyncHandler(async (req: Requ
   ad.status = 'rejected';
   await ad.save();
   res.json(ad);
+}));
+
+// Удалить объявление
+app.delete('/ads/:id', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
+  // @ts-ignore
+  if (req.user.role !== UserRole.ADMIN) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  const ad = await Ad.findByPk(req.params.id);
+  if (!ad) return res.status(404).json({ error: 'Ad not found' });
+  
+  // Soft delete by setting the deleted flag instead of destroying the record
+  await ad.update({ deleted: true });
+  res.json({ success: true });
 }));
 
 // Категории: CRUD
