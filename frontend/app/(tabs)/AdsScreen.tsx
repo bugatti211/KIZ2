@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Modal, TouchableOpacity, StyleSheet, Pressable, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, StyleSheet, Pressable, FlatList, ActivityIndicator, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../api';
 import { useIsFocused } from '@react-navigation/native';
@@ -9,29 +9,35 @@ import { useRouter } from 'expo-router';
 export default function AdsScreen() {  const router = useRouter();
   const [showAuth, setShowAuth] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
-  const [isAuthChecked, setIsAuthChecked] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthChecked, setIsAuthChecked] = useState(false);  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [ads, setAds] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const isFocused = useIsFocused();
-
   const fetchAds = async () => {
     setLoading(true);
     setError('');
     try {
-      const res = await api.get('/ads');
+      const endpoint = isAdmin ? '/ads/moderation' : '/ads';
+      const res = await api.get(endpoint);
       setAds(res.data);
     } catch (e: any) {
       setError(e.message || 'Ошибка загрузки объявлений');
     } finally {
       setLoading(false);
     }
-  };
-  useEffect(() => {
+  };  useEffect(() => {
     (async () => {
       const token = await AsyncStorage.getItem('token');
-      setIsAuthenticated(!!token);
+      if (token) {
+        setIsAuthenticated(true);
+        const tokenData = JSON.parse(atob(token.split('.')[1]));
+        setIsAdmin(tokenData.role === 'admin');
+      } else {
+        setIsAuthenticated(false);
+        setIsAdmin(false);
+      }
       setIsAuthChecked(true);
     })();
   }, []);
@@ -50,6 +56,24 @@ export default function AdsScreen() {  const router = useRouter();
     setShowAuth(false);
   };
 
+  const handleApprove = async (adId: number) => {
+    try {
+      await api.post(`/ads/${adId}/approve`);
+      fetchAds();
+    } catch (error: any) {
+      Alert.alert('Ошибка', error.response?.data?.error || 'Не удалось подтвердить объявление');
+    }
+  };
+
+  const handleReject = async (adId: number) => {
+    try {
+      await api.post(`/ads/${adId}/reject`);
+      fetchAds();
+    } catch (error: any) {
+      Alert.alert('Ошибка', error.response?.data?.error || 'Не удалось отклонить объявление');
+    }
+  };
+
   return (
     <View style={{ flex: 1, padding: 20, backgroundColor: '#f7f7f7' }}>
       {loading ? (
@@ -62,17 +86,27 @@ export default function AdsScreen() {  const router = useRouter();
           keyExtractor={item => item.id.toString()}
           renderItem={({ item }) => (
             <View style={styles.adCard}>
-              <View style={styles.adHeader}>
-                <Text style={styles.adTitle}>{item.text}</Text>
-              </View>
-              <View style={styles.adInfoRow}>
-                <Text style={styles.adLabel}>Телефон:</Text>
-                <Text style={styles.adValue}>{item.phone}</Text>
-              </View>
-              <View style={styles.adInfoRow}>
-                <Text style={styles.adLabel}>Отправитель:</Text>
-                <Text style={styles.adValue}>{item.User?.name || '—'}</Text>
-              </View>
+              <Text style={styles.adText}>{item.text}</Text>
+              <Text style={styles.adPhone}>{item.phone}</Text>
+              {isAdmin && item.status === 'pending' && (
+                <View style={styles.moderationButtons}>
+                  <TouchableOpacity
+                    style={[styles.moderationButton, styles.approveButton]}
+                    onPress={() => handleApprove(item.id)}
+                  >
+                    <Text style={styles.buttonText}>Подтвердить</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.moderationButton, styles.rejectButton]}
+                    onPress={() => handleReject(item.id)}
+                  >
+                    <Text style={styles.buttonText}>Отклонить</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              {!isAdmin && item.status === 'approved' && (
+                <Text style={styles.statusText}>Подтверждено</Text>
+              )}
             </View>
           )}        />
       )}      {/* Floating Action Button */}
@@ -201,23 +235,43 @@ const styles = StyleSheet.create({
   adHeader: {
     marginBottom: 10,
   },
-  adTitle: {
+  adText: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#222',
     marginBottom: 2,
   },
-  adInfoRow: {
-    flexDirection: 'row',
-    marginBottom: 4,
-  },
-  adLabel: {
-    fontWeight: '600',
-    color: '#888',
-    marginRight: 6,
-  },  adValue: {
+  adPhone: {
     color: '#333',
     fontWeight: '500',
+    marginBottom: 10,
+  },
+  moderationButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  moderationButton: {
+    flex: 1,
+    padding: 8,
+    borderRadius: 6,
+    marginHorizontal: 4,
+    alignItems: 'center',
+  },
+  approveButton: {
+    backgroundColor: '#4CAF50',
+  },
+  rejectButton: {
+    backgroundColor: '#f44336',
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  statusText: {
+    marginTop: 8,
+    color: '#4CAF50',
+    fontWeight: '600',
   },
   createButton: {
     position: 'absolute',

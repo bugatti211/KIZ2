@@ -32,11 +32,14 @@ const sessionStore = new SessionStore({
 app.use(session({
   secret: 'your-session-secret',
   store: sessionStore,
-  resave: false,
-  saveUninitialized: false,
+  resave: true,
+  saveUninitialized: true,
+  rolling: true,
   cookie: {
     secure: process.env.NODE_ENV === 'production',
-    maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    httpOnly: true,
+    sameSite: 'lax'
   }
 }));
 
@@ -217,8 +220,7 @@ app.post('/ads', authMiddleware as any, asyncHandler(async (req: Request, res: R
   const userId = req.user.id;
   if (!text || !phone) {
     return res.status(400).json({ error: 'Text and phone are required' });
-  }
-  const ad = await Ad.create({ text, phone, userId });
+  }  const ad = await Ad.create({ text, phone, userId, status: 'pending' });
   res.status(201).json(ad);
 }));
 
@@ -453,10 +455,18 @@ app.get('/api/contacts', asyncHandler(async (req: Request, res: Response) => {
 app.get('/cart', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
   // @ts-ignore
   const userId = req.user.id;
-  
+
   try {
+    // Initialize cart if it doesn't exist
+    if (!req.session.cart) {
+      req.session.cart = {};
+    }
+    if (!req.session.cart[userId]) {
+      req.session.cart[userId] = [];
+    }
+
     // Get cart from user's session
-    const cartItems = req.session?.cart?.[userId] || [];
+    const cartItems = req.session.cart[userId];
     
     // Fetch full product details for each item
     const itemsWithDetails = await Promise.all(
@@ -483,6 +493,19 @@ app.get('/cart', authMiddleware as any, asyncHandler(async (req: Request, res: R
     // Filter out null items (products that no longer exist)
     const validItems = itemsWithDetails.filter((item): item is NonNullable<typeof item> => item !== null);
     
+    // If some items were filtered out (deleted products), update the session
+    if (validItems.length !== cartItems.length) {
+      req.session.cart[userId] = cartItems.filter(item => 
+        validItems.some(valid => valid.id === item.productId)
+      );
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+    }
+    
     res.json(validItems);
   } catch (error) {
     console.error('Error getting cart:', error);
@@ -500,21 +523,28 @@ app.post('/cart/add', authMiddleware as any, asyncHandler(async (req: Request, r
   }
 
   try {
+    // Check if product exists and has enough stock first
+    const product = await Product.findByPk(productId, {
+      include: [{
+        model: Category,
+        as: 'category'
+      }]
+    });
+    
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    
+    if (product.stock < quantity) {
+      return res.status(400).json({ error: 'Not enough stock' });
+    }
+
     // Initialize session cart if it doesn't exist
     if (!req.session.cart) {
       req.session.cart = {};
     }
     if (!req.session.cart[userId]) {
       req.session.cart[userId] = [];
-    }
-
-    // Check if product exists and has enough stock
-    const product = await Product.findByPk(productId);
-    if (!product) {
-      return res.status(404).json({ error: 'Product not found' });
-    }
-    if (product.stock < quantity) {
-      return res.status(400).json({ error: 'Not enough stock' });
     }
 
     // Add to cart
@@ -528,7 +558,38 @@ app.post('/cart/add', authMiddleware as any, asyncHandler(async (req: Request, r
       req.session.cart[userId].push({ productId, quantity });
     }
 
-    res.status(200).json(req.session.cart[userId]);
+    // Save session explicitly
+    await new Promise<void>((resolve, reject) => {
+      req.session.save((err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+
+    // Return updated cart data with product details
+    const cartItems = await Promise.all(
+      req.session.cart[userId].map(async (item) => {
+        const cartProduct = await Product.findByPk(item.productId, {
+          include: [{
+            model: Category,
+            as: 'category'
+          }]
+        });
+        if (!cartProduct) return null;
+
+        return {
+          id: cartProduct.id,
+          name: cartProduct.name,
+          price: cartProduct.price,
+          quantity: item.quantity,
+          stock: cartProduct.stock,
+          isByWeight: cartProduct.category?.name === 'На развес'
+        };
+      })
+    );
+
+    const validItems = cartItems.filter((item): item is NonNullable<typeof item> => item !== null);
+    res.status(200).json(validItems);
   } catch (error) {
     console.error('Error adding to cart:', error);
     res.status(500).json({ error: 'Failed to add to cart' });
@@ -892,6 +953,15 @@ app.post('/sales', asyncHandler(async (req: Request, res: Response) => {
     res.status(400).json({ error: e.message });
   }
 }));
+
+// Error handling middleware
+app.use((err: any, req: Request, res: Response, next: any) => {
+  console.error('Error:', err);
+  res.status(err.status || 500).json({
+    error: err.message || 'Internal Server Error',
+    details: process.env.NODE_ENV === 'development' ? err.stack : undefined
+  });
+});
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
