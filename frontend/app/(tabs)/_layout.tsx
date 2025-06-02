@@ -1,8 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { authEvents, AUTH_EVENTS } from '../events';
 import { Ionicons } from '@expo/vector-icons';
+import { authEvents, AUTH_EVENTS } from '../events';
+
+// Screen imports
 import CatalogScreen from './CatalogScreen';
 import ConsultScreen from './ConsultScreen';
 import CartScreen from './CartScreen';
@@ -11,13 +14,13 @@ import CategoryProductsScreen from './CategoryProductsScreen';
 import ProductCardScreen from './ProductCardScreen';
 import ProductManagementScreen from './ProductManagementScreen';
 import AddEditProductScreen from '../AddEditProductScreen';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AdsScreen from './AdsScreen';
 import NewSupplyScreen from './NewSupplyScreen';
 import SupplyHistoryScreen from './SupplyHistoryScreen';
 import OrdersScreen from './OrdersScreen';
 import OfflineSalesScreen from './OfflineSalesScreen';
 import UserOrdersScreen from './UserOrdersScreen';
+import SalesHistoryScreen from './SalesHistoryScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -31,21 +34,38 @@ const checkAuth = async () => {
 function ProfileStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="ProfileMain" component={ProfileScreen} options={{ title: 'Профиль', headerShown: true }}/>
+      <Stack.Screen 
+        name="ProfileMain" 
+        component={ProfileScreen} 
+        options={{ 
+          title: 'Профиль',
+          headerShown: true,
+          headerStyle: { backgroundColor: '#fff' },
+          headerTintColor: '#000',
+          headerTitleStyle: { fontWeight: 'bold' }
+        }}
+      />
       <Stack.Screen 
         name="UserOrdersScreen" 
         component={UserOrdersScreen} 
         options={{ 
           title: 'Мои заказы',
           headerShown: true,
-          headerStyle: {
-            backgroundColor: '#fff',
-          },
+          headerStyle: { backgroundColor: '#fff' },
           headerTintColor: '#000',
-          headerTitleStyle: {
-            fontWeight: 'bold',
-          }
-        }} 
+          headerTitleStyle: { fontWeight: 'bold' }
+        }}
+      />
+      <Stack.Screen 
+        name="SalesHistoryScreen" 
+        component={SalesHistoryScreen} 
+        options={{ 
+          title: 'История продаж',
+          headerShown: true,
+          headerStyle: { backgroundColor: '#fff' },
+          headerTintColor: '#000',
+          headerTitleStyle: { fontWeight: 'bold' }
+        }}
       />
       <Stack.Screen 
         name="OfflineSalesScreen" 
@@ -53,14 +73,10 @@ function ProfileStack() {
         options={{ 
           title: 'Оффлайн-продажи',
           headerShown: true,
-          headerStyle: {
-            backgroundColor: '#fff',
-          },
+          headerStyle: { backgroundColor: '#fff' },
           headerTintColor: '#000',
-          headerTitleStyle: {
-            fontWeight: 'bold',
-          }
-        }} 
+          headerTitleStyle: { fontWeight: 'bold' }
+        }}
       />
       <Stack.Screen 
         name="ProductManagementScreen" 
@@ -68,14 +84,10 @@ function ProfileStack() {
         options={{ 
           title: 'Управление товарами',
           headerShown: true,
-          headerStyle: {
-            backgroundColor: '#fff',
-          },
+          headerStyle: { backgroundColor: '#fff' },
           headerTintColor: '#000',
-          headerTitleStyle: {
-            fontWeight: 'bold',
-          }
-        }} 
+          headerTitleStyle: { fontWeight: 'bold' }
+        }}
       />
       <Stack.Screen 
         name="NewSupply" 
@@ -83,14 +95,10 @@ function ProfileStack() {
         options={{ 
           title: 'Новая поставка',
           headerShown: true,
-          headerStyle: {
-            backgroundColor: '#fff',
-          },
+          headerStyle: { backgroundColor: '#fff' },
           headerTintColor: '#000',
-          headerTitleStyle: {
-            fontWeight: 'bold',
-          }
-        }} 
+          headerTitleStyle: { fontWeight: 'bold' }
+        }}
       />
       <Stack.Screen 
         name="SupplyHistory" 
@@ -98,14 +106,10 @@ function ProfileStack() {
         options={{ 
           title: 'История поставок',
           headerShown: true,
-          headerStyle: {
-            backgroundColor: '#fff',
-          },
+          headerStyle: { backgroundColor: '#fff' },
           headerTintColor: '#000',
-          headerTitleStyle: {
-            fontWeight: 'bold',
-          }
-        }} 
+          headerTitleStyle: { fontWeight: 'bold' }
+        }}
       />
       <Stack.Screen 
         name="AddEditProductScreen" 
@@ -113,14 +117,10 @@ function ProfileStack() {
         options={({ route }: any) => ({ 
           title: route.params?.product ? 'Редактировать товар' : 'Новый товар',
           headerShown: true,
-          headerStyle: {
-            backgroundColor: '#fff',
-          },
+          headerStyle: { backgroundColor: '#fff' },
           headerTintColor: '#000',
-          headerTitleStyle: {
-            fontWeight: 'bold',
-          }
-        })} 
+          headerTitleStyle: { fontWeight: 'bold' }
+        })}
       />
     </Stack.Navigator>
   );

@@ -1000,6 +1000,79 @@ app.post('/sales', asyncHandler(async (req: Request, res: Response) => {
   }
 }));
 
+// Sale Endpoints
+app.get('/sales/all', asyncHandler(async (req: Request, res: Response) => {
+  try {
+    // Получаем все офлайн продажи
+    const sales = await Sale.findAll({
+      include: [{
+        model: SaleItem,
+        as: 'items',
+        include: [{
+          model: Product,
+          as: 'product',
+          include: [{
+            model: Category,
+            as: 'category'
+          }]
+        }]
+      }],
+      order: [['date', 'DESC']]
+    });
+
+    // Получаем все онлайн заказы со статусом "confirmed"
+    const orders = await Order.findAll({
+      where: {
+        status: 'confirmed'
+      },
+      include: [{
+        model: OrderItem,
+        as: 'items',
+        include: [{
+          model: Product,
+          as: 'product',
+          include: [{
+            model: Category,
+            as: 'category'
+          }]
+        }]
+      }],
+      order: [['createdAt', 'DESC']]
+    });    // Преобразуем заказы в формат продаж
+    const orderSales = orders.map(order => {
+      const orderData = order.get({ plain: true });
+      return {
+        id: orderData.id,
+        date: orderData.createdAt,
+        total: orderData.total,
+        type: 'online',
+        items: orderData.items?.map((item: any) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          price: item.price,
+          product: item.product
+        })) || []
+      };
+    });
+
+    // Добавляем тип 'offline' к офлайн продажам
+    const offlineSales = sales.map(sale => ({
+      ...sale.toJSON(),
+      type: 'offline'
+    }));
+
+    // Объединяем и сортируем все продажи по дате
+    const allSales = [...orderSales, ...offlineSales].sort((a, b) => 
+      new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+
+    res.json(allSales);
+  } catch (error) {
+    console.error('Error fetching all sales:', error);
+    res.status(500).json({ error: 'Failed to fetch sales history' });
+  }
+}));
+
 // Error handling middleware
 app.use((err: any, req: Request, res: Response, next: any) => {
   console.error('Error:', err);

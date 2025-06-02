@@ -309,7 +309,8 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
     }
     
     // Проверяем права доступа на основе роли пользователя
-    if (user) {      // Только для админа
+    if (user) {
+      // Только для админа
       if (title === 'Регистрация сотрудника' && user.role !== UserRole.ADMIN) {
         return null;
       }
@@ -318,7 +319,8 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
       if (title === 'Объявления на модерацию' && user.role !== UserRole.ADMIN) {
         return null;
       }
-        // Только для админа, продавцов и грузчиков
+
+      // Только для админа, продавцов и грузчиков
       if (title === 'Управление товарами' || title === 'Оффлайн-продажи') {
         if (user.role !== UserRole.ADMIN && user.role !== UserRole.SELLER) {
           return null;
@@ -330,6 +332,18 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
         if (user.role !== UserRole.ADMIN && user.role !== UserRole.SELLER && user.role !== UserRole.LOADER) {
           return null;
         }
+      }
+
+      // История продаж доступна админам, продавцам и бухгалтерам
+      if (title === 'История продаж') {
+        if (user.role !== UserRole.ADMIN && user.role !== UserRole.SELLER && user.role !== UserRole.ACCOUNTANT) {
+          return null;
+        }
+      }
+
+      // Скрываем "Мои заказы" для персонала
+      if (title === 'Мои заказы' && (user.role === UserRole.ADMIN || user.role === UserRole.SELLER || user.role === UserRole.ACCOUNTANT || user.role === UserRole.LOADER)) {
+        return null;
       }
     }
 
@@ -561,12 +575,13 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
                 <Text style={styles.role}>{roleTranslations[user.role as UserRole] || user.role}</Text>
               </View>
               {/* Меню действий */}
-              <View style={styles.menuContainer}>                {renderMenuItem('👤', 'Личные данные', () => setShowPersonalInfo(true))}
+              <View style={styles.menuContainer}>                
+                {renderMenuItem('👤', 'Личные данные', () => setShowPersonalInfo(true))}
                 {renderMenuItem('🛍️', 'Мои заказы', () => navigationNative.navigate('UserOrdersScreen'))}
                 {renderMenuItem('📦', 'Управление товарами', () => navigationNative.navigate('ProductManagementScreen'))}
+                {renderMenuItem('📈', 'История продаж', () => navigationNative.navigate('SalesHistoryScreen'))}
                 {renderMenuItem('📋', 'Поставки', () => setShowSupplyModal(true))}
                 {renderMenuItem('💰', 'Оффлайн-продажи', () => navigationNative.navigate('OfflineSalesScreen'))}
-                {renderMenuItem('⚖️', 'Объявления на модерацию', () => router.push('/(tabs)/AdsScreen'))}
                 {renderMenuItem('👥', 'Регистрация сотрудника', () => setShowEmployeeRegistration(true))}
                 {renderMenuItem('🚪', 'Выйти', handleLogout, '#FFE5E5')}
               </View>

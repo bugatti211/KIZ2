@@ -1,8 +1,49 @@
-import { Model, DataTypes } from 'sequelize';
+import { Model, DataTypes, Association } from 'sequelize';
 import sequelize from './sequelize';
 import User from './user.model';
 import Product from './product.model';
 import Category from './category.model';
+
+class OrderItem extends Model {
+  public id!: number;
+  public orderId!: number;
+  public productId!: number;
+  public quantity!: number;
+  public price!: number;
+  public createdAt!: Date;
+  public updatedAt!: Date;
+
+  // Associations
+  public product?: Product;
+}
+
+OrderItem.init({
+  id: {
+    type: DataTypes.INTEGER,
+    autoIncrement: true,
+    primaryKey: true,
+  },
+  orderId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+  },
+  productId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+  },
+  quantity: {
+    type: DataTypes.FLOAT,
+    allowNull: false,
+  },
+  price: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: false,
+  }
+}, {
+  sequelize,
+  modelName: 'OrderItem',
+  timestamps: true
+});
 
 class Order extends Model {
   public id!: number;
@@ -17,6 +58,14 @@ class Order extends Model {
   public total!: number;
   public createdAt!: Date;
   public updatedAt!: Date;
+
+  // Define relationships
+  public readonly items?: OrderItem[];
+
+  // Define static associations
+  public declare static associations: {
+    items: Association<Order, OrderItem>;
+  };
 }
 
 Order.init({
@@ -72,61 +121,11 @@ Order.init({
   tableName: 'orders'
 });
 
-class OrderItem extends Model {
-  public id!: number;
-  public orderId!: number;
-  public productId!: number;
-  public quantity!: number;
-  public price!: number;
-  public createdAt!: Date;
-  public updatedAt!: Date;
-}
+// Set up associations
+OrderItem.belongsTo(Product, { foreignKey: 'productId', as: 'product' });
+Product.hasMany(OrderItem, { foreignKey: 'productId' });
 
-OrderItem.init({
-  id: {
-    type: DataTypes.INTEGER,
-    autoIncrement: true,
-    primaryKey: true,
-  },
-  orderId: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    references: {
-      model: Order,
-      key: 'id',
-    },
-  },
-  productId: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    references: {
-      model: Product,
-      key: 'id',
-    },
-  },  quantity: {
-    type: DataTypes.DECIMAL(10, 2),
-    allowNull: false,
-  },
-  price: {
-    type: DataTypes.DECIMAL(10, 2),
-    allowNull: false,
-  },
-  createdAt: {
-    type: DataTypes.DATE,
-    allowNull: false,
-  },
-  updatedAt: {
-    type: DataTypes.DATE,
-    allowNull: false,
-  }
-}, {
-  sequelize,
-  modelName: 'OrderItem',
-  tableName: 'order_items'
-});
-
-Order.hasMany(OrderItem, { as: 'items', foreignKey: 'orderId' });
-OrderItem.belongsTo(Product, { as: 'product', foreignKey: 'productId' });
-// Удаляем дублирующую ассоциацию с Category, так как она уже определена в product.model.ts
+Order.hasMany(OrderItem, { foreignKey: 'orderId', as: 'items' });
+OrderItem.belongsTo(Order, { foreignKey: 'orderId' });
 
 export { Order, OrderItem };
