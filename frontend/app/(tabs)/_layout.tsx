@@ -18,7 +18,9 @@ import SupplyHistoryScreen from './SupplyHistoryScreen';
 import OrdersScreen from './OrdersScreen';
 import OfflineSalesScreen from './OfflineSalesScreen';
 import SalesHistoryScreen from './SalesHistoryScreen';
+
 import OrderDetailsScreen from './OrderDetailsScreen';
+
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -109,6 +111,7 @@ function ProfileStack() {
         }}
       />
       <Stack.Screen
+
         name="OrderDetails"
         component={OrderDetailsScreen}
         options={{
@@ -120,6 +123,8 @@ function ProfileStack() {
         }}
       />
       <Stack.Screen
+
+
         name="AddEditProductScreen"
         component={AddEditProductScreen}
         options={({ route }: any) => ({
