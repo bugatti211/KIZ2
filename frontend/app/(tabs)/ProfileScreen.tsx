@@ -318,8 +318,8 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
       if (title === 'Объявления на модерацию' && user.role !== UserRole.ADMIN) {
         return null;
       }
-        // Только для админа, продавцов и грузчиков
-      if (title === 'Управление товарами' || title === 'Оффлайн-продажи') {
+      // Только для админа и продавцов
+      if (title === 'Управление товарами' || title === 'Оффлайн-продажи' || title === 'История продаж') {
         if (user.role !== UserRole.ADMIN && user.role !== UserRole.SELLER) {
           return null;
         }
@@ -566,6 +566,7 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
                 {renderMenuItem('🛍️', 'Мои заказы', () => router.push('/(tabs)/OrdersScreen'))}                {renderMenuItem('📦', 'Управление товарами', () => navigationNative.navigate('ProductManagementScreen'))}
                 {renderMenuItem('📋', 'Поставки', () => setShowSupplyModal(true))}
                 {renderMenuItem('💰', 'Оффлайн-продажи', () => navigationNative.navigate('OfflineSalesScreen'))}
+                {renderMenuItem('📈', 'История продаж', () => navigationNative.navigate('SalesHistory'))}
                 {renderMenuItem('⚖️', 'Объявления на модерацию', () => router.push('/(tabs)/AdsScreen'))}
                 {renderMenuItem('👥', 'Регистрация сотрудника', () => setShowEmployeeRegistration(true))}
                 {renderMenuItem('🚪', 'Выйти', handleLogout, '#FFE5E5')}
