@@ -19,6 +19,9 @@ import OrdersScreen from './OrdersScreen';
 import OfflineSalesScreen from './OfflineSalesScreen';
 import SalesHistoryScreen from './SalesHistoryScreen';
 
+import OrderDetailsScreen from './OrderDetailsScreen';
+
+
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
@@ -108,6 +111,20 @@ function ProfileStack() {
         }}
       />
       <Stack.Screen
+
+        name="OrderDetails"
+        component={OrderDetailsScreen}
+        options={{
+          title: 'Детали заказа',
+          headerShown: true,
+          headerStyle: { backgroundColor: '#fff' },
+          headerTintColor: '#000',
+          headerTitleStyle: { fontWeight: 'bold' }
+        }}
+      />
+      <Stack.Screen
+
+
         name="AddEditProductScreen"
         component={AddEditProductScreen}
         options={({ route }: any) => ({

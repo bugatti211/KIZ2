@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from 'react';
+
+import { View, Text, StyleSheet, ActivityIndicator, RefreshControl, ScrollView, TouchableOpacity } from 'react-native';
+
 import { View, Text, StyleSheet, ActivityIndicator, RefreshControl, ScrollView } from 'react-native';
+
 import { useNavigation } from '@react-navigation/native';
 import { HeaderBackButton } from '@react-navigation/elements';
 import api from '../api';
@@ -100,10 +104,21 @@ export default function SalesHistoryScreen() {
         <Text style={styles.emptyText}>Записей нет</Text>
       ) : (
         orders.map(order => (
+
+          <TouchableOpacity
+            key={`order-${order.id}`}
+            style={styles.item}
+            onPress={() => navigation.navigate('OrderDetails', { order })}
+          >
+            <Text style={styles.date}>{formatDate(order.createdAt)}</Text>
+            <Text style={styles.total}>Сумма: {Number(order.total).toLocaleString()} ₽</Text>
+          </TouchableOpacity>
+
           <View key={`order-${order.id}`} style={styles.item}>
             <Text style={styles.date}>{formatDate(order.createdAt)}</Text>
             <Text style={styles.total}>Сумма: {Number(order.total).toLocaleString()} ₽</Text>
           </View>
+
         ))
       )}
     </ScrollView>

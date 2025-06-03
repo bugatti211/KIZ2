@@ -13,6 +13,10 @@ export type ProfileStackParamList = {
   NewSupply: undefined;
   SupplyHistory: undefined;
   SalesHistory: undefined;
+
+  OrderDetails: { order: any };
+
+
   AddEditProductScreen: { product?: any };
 };
 
