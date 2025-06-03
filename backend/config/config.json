@@ -1,0 +1,9 @@
+{
+  "development": {
+    "username": "postgres",
+    "password": "925248914",
+    "database": "mobile_app_new",
+    "host": "127.0.0.1",
+    "dialect": "postgres"
+  }
+}
