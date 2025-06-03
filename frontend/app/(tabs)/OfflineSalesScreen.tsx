@@ -8,14 +8,12 @@ import {
   Alert,
   TextInput,
   ActivityIndicator,
-  RefreshControl,
   Modal,
   FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../api';
 import { Product } from '../models/product.model';
-import { Sale, SaleItem, SaleStatistics } from '../models/sale.model';
 
 interface ValidationErrors {
   quantity: string;
@@ -31,24 +29,17 @@ interface SaleProduct {
 }
 
 export default function OfflineSalesScreen() {
-  // State management
-  const [showNewSaleModal, setShowNewSaleModal] = useState(false);
-  const [showProductSelector, setShowProductSelector] = useState(false);
+  // Form state management
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [saleProducts, setSaleProducts] = useState<SaleProduct[]>([]);
   const [currentQuantity, setCurrentQuantity] = useState('');
   const [currentPrice, setCurrentPrice] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
+  const [showProductSelector, setShowProductSelector] = useState(false);
   
-  // Statistics state
-  const [todayStats, setTodayStats] = useState<SaleStatistics | null>(null);
-  const [monthlyStats, setMonthlyStats] = useState<SaleStatistics | null>(null);
-  const [sales, setSales] = useState<Sale[]>([]);
-
   // Loading states
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
   
   // Validation errors state
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({
@@ -105,38 +96,23 @@ export default function OfflineSalesScreen() {
     return isValid;
   };
 
-  // Load data with error handling
-  const loadData = async () => {
+  // Load products
+  const loadProducts = async () => {
     try {
       setIsLoadingData(true);
-      const [productsRes, salesRes, todayRes, monthlyRes] = await Promise.all([
-        api.get('/products'),
-        api.get('/sales'),
-        api.get('/sales/today'),
-        api.get('/sales/monthly')
-      ]);
+      const productsRes = await api.get('/products');
       setProducts(productsRes.data.filter((p: Product) => p.active));
-      setSales(salesRes.data);
-      setTodayStats(todayRes.data);
-      setMonthlyStats(monthlyRes.data);
     } catch (e) {
-      console.error('Error loading sales data:', e);
-      Alert.alert('Ошибка', 'Не удалось загрузить данные о продажах. Проверьте подключение к интернету.');
+      console.error('Error loading products:', e);
+      Alert.alert('Ошибка', 'Не удалось загрузить список товаров. Проверьте подключение к интернету.');
     } finally {
       setIsLoadingData(false);
     }
   };
 
-  // Refresh data
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadData();
-    setRefreshing(false);
-  };
-
   // Load initial data
   useEffect(() => {
-    loadData();
+    loadProducts();
   }, []);
 
   const addProductToSale = () => {
@@ -205,275 +181,149 @@ export default function OfflineSalesScreen() {
       };
 
       await api.post('/sales', saleData);
-      Alert.alert('Успех', 'Продажа успешно сохранена');
       
-      // Reset form and reload data
+      Alert.alert('Успех', 'Продажа успешно оформлена');
       setSaleProducts([]);
-      setShowNewSaleModal(false);
-      await loadData();
-    } catch (e: any) {
-      const errorMessage = e.response?.data?.error || 'Не удалось сохранить продажу';
-      Alert.alert('Ошибка', errorMessage);
+      setSelectedProduct(null);
+      setCurrentQuantity('');
+      setCurrentPrice('');
+      
+      // Refresh products to update stock
+      loadProducts();
+    } catch (e) {
+      console.error('Error completing sale:', e);
+      Alert.alert('Ошибка', 'Не удалось оформить продажу. Проверьте подключение к интернету.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleProductSelect = (product: Product) => {
-    setSelectedProduct(product);
-    setCurrentPrice(product.price.toString());
-    setShowProductSelector(false);
-  };
-
-  if (isLoadingData) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2196F3" />
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
-      {/* Статистика */}
-      <View style={styles.statsContainer}>
-        <Text style={styles.statsTitle}>Статистика продаж</Text>
-        
-        <Text style={styles.statsSubtitle}>Сегодня:</Text>
-        <View style={styles.statsRow}>
-          <Text style={styles.statsLabel}>Общая сумма:</Text>
-          <Text style={styles.statsValue}>{todayStats?.totalAmount?.toLocaleString() || '0'} ₽</Text>
-        </View>
-        <View style={styles.statsRow}>
-          <Text style={styles.statsLabel}>Количество продаж:</Text>
-          <Text style={styles.statsValue}>{todayStats?.totalSales || '0'}</Text>
-        </View>
+      <ScrollView style={styles.formContainer}>
+        {/* Product selection */}
+        <TouchableOpacity
+          style={styles.productSelector}
+          onPress={() => setShowProductSelector(true)}
+        >
+          <Text style={styles.label}>Товар:</Text>
+          <Text style={styles.productName}>
+            {selectedProduct ? selectedProduct.name : 'Выберите товар'}
+          </Text>
+        </TouchableOpacity>
 
-        <Text style={styles.statsSubtitle}>За месяц:</Text>
-        <View style={styles.statsRow}>
-          <Text style={styles.statsLabel}>Общая сумма:</Text>
-          <Text style={styles.statsValue}>{monthlyStats?.totalAmount?.toLocaleString() || '0'} ₽</Text>
-        </View>
-        <View style={styles.statsRow}>
-          <Text style={styles.statsLabel}>Количество продаж:</Text>
-          <Text style={styles.statsValue}>{monthlyStats?.totalSales || '0'}</Text>
-        </View>
-      </View>
-
-      {/* Кнопка новой продажи */}
-      <TouchableOpacity 
-        style={styles.newSaleButton}
-        onPress={() => setShowNewSaleModal(true)}
-      >
-        <Ionicons name="add-circle-outline" size={24} color="#fff" />
-        <Text style={styles.newSaleButtonText}>Новая продажа</Text>
-      </TouchableOpacity>
-
-      {/* История продаж */}
-      <Text style={styles.sectionTitle}>История продаж</Text>
-      <FlatList
-        data={sales}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => (
-          <View style={styles.saleCard}>
-            <View style={styles.saleHeader}>
-              <Text style={styles.saleDate}>
-                {new Date(item.date).toLocaleString('ru-RU', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
-              </Text>
-              <Text style={styles.saleTotal}>{item.total.toLocaleString()} ₽</Text>
-            </View>
-          </View>
-        )}
-        refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
-            onRefresh={onRefresh}
-            colors={["#2196F3"]}
-            tintColor="#2196F3"
+        {/* Quantity input */}
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Количество:</Text>
+          <TextInput
+            style={styles.input}
+            value={currentQuantity}
+            onChangeText={setCurrentQuantity}
+            keyboardType="decimal-pad"
+            placeholder="Введите количество"
           />
-        }
-        ListEmptyComponent={
-          <Text style={styles.emptyText}>История продаж пуста</Text>
-        }
-      />
+          {validationErrors.quantity ? (
+            <Text style={styles.errorText}>{validationErrors.quantity}</Text>
+          ) : null}
+        </View>
 
-      {/* Модальное окно новой продажи */}
-      <Modal
-        visible={showNewSaleModal}
-        animationType="slide"
-        onRequestClose={() => setShowNewSaleModal(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Новая продажа</Text>
-            <TouchableOpacity 
-              onPress={() => setShowNewSaleModal(false)}
-              style={styles.closeButton}
-            >
-              <Text style={styles.closeButtonText}>Закрыть</Text>
-            </TouchableOpacity>
+        {/* Price display */}
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Цена:</Text>
+          <View style={[styles.input, styles.priceDisplay]}>
+            <Text style={styles.priceText}>
+              {selectedProduct ? `${selectedProduct.price} ₽` : '—'}
+            </Text>
           </View>
+        </View>
 
-          <ScrollView style={styles.modalContentScroll}>
-            <View style={styles.modalContent}>
-              <View style={styles.selectedProducts}>
-                {saleProducts.map(item => (
-                  <View key={item.productId} style={styles.saleProductItem}>
-                    <View style={styles.saleProductDetails}>
-                      <Text style={styles.productName}>{item.product.name}</Text>
-                      <View style={styles.quantityPrice}>
-                        <Text style={styles.quantity}>
-                          {item.product.category?.name === 'На развес'
-                            ? `${item.quantity.toFixed(2)} кг`
-                            : `${item.quantity} шт.`}
-                        </Text>
-                        <Text style={styles.price}>× {item.price.toLocaleString()} ₽</Text>
-                      </View>
-                    </View>
-                    <View style={styles.saleProductTotal}>
-                      <Text style={styles.total}>{item.total.toLocaleString()} ₽</Text>
-                      <TouchableOpacity
-                        style={styles.removeButton}
-                        onPress={() => removeProductFromSale(item.productId)}
-                      >
-                        <Ionicons name="trash-outline" size={20} color="#ff0000" />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                ))}
-              </View>
+        {/* Add product button */}
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={addProductToSale}
+        >
+          <Text style={styles.buttonText}>Добавить товар</Text>
+        </TouchableOpacity>
 
-              {/* Кнопка добавления товара */}
-              <TouchableOpacity
-                style={styles.addProductButton}
-                onPress={() => setShowProductSelector(true)}
-              >
-                <Ionicons name="add" size={24} color="#fff" />
-                <Text style={styles.addProductButtonText}>Добавить товар</Text>
-              </TouchableOpacity>
-
-              {/* Завершение продажи */}
-              <View style={styles.completeSaleContainer}>
-                <Text style={styles.totalLabel}>
-                  Итого: {getTotalSaleAmount().toLocaleString()} ₽
-                </Text>
+        {/* Products list */}
+        {saleProducts.length > 0 && (
+          <View style={styles.productsContainer}>
+            <Text style={styles.sectionTitle}>Добавленные товары:</Text>
+            {saleProducts.map((item) => (
+              <View key={item.productId} style={styles.productItem}>
+                <View style={styles.productInfo}>
+                  <Text style={styles.productItemName}>{item.product.name}</Text>
+                  <Text style={styles.productItemDetails}>
+                    {item.quantity} x {item.price} ₽ = {item.total} ₽
+                  </Text>
+                </View>
                 <TouchableOpacity
-                  style={[
-                    styles.completeButton,
-                    (isSubmitting || saleProducts.length === 0) && styles.disabledButton
-                  ]}
-                  onPress={completeSale}
-                  disabled={isSubmitting || saleProducts.length === 0}
+                  style={styles.removeButton}
+                  onPress={() => removeProductFromSale(item.productId)}
                 >
-                  {isSubmitting ? (
-                    <ActivityIndicator color="#fff" style={styles.buttonLoader} />
-                  ) : (
-                    <Text style={styles.completeButtonText}>Завершить продажу</Text>
-                  )}
+                  <Ionicons name="trash-outline" size={24} color="#FF4444" />
                 </TouchableOpacity>
               </View>
+            ))}
+            <View style={styles.totalContainer}>
+              <Text style={styles.totalText}>
+                Итого: {getTotalSaleAmount()} ₽
+              </Text>
             </View>
-          </ScrollView>
-        </View>
-      </Modal>
+            <TouchableOpacity
+              style={[styles.completeButton, isSubmitting && styles.disabledButton]}
+              onPress={completeSale}
+              disabled={isSubmitting}
+            >
+              <Text style={styles.buttonText}>
+                {isSubmitting ? 'Оформление...' : 'Оформить продажу'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </ScrollView>
 
-      {/* Модальное окно выбора товара */}
+      {/* Product selector modal */}
       <Modal
         visible={showProductSelector}
         animationType="slide"
-        onRequestClose={() => setShowProductSelector(false)}
+        transparent={true}
       >
         <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Выбор товара</Text>
-            <TouchableOpacity
-              onPress={() => setShowProductSelector(false)}
-              style={styles.closeButton}
-            >
-              <Text style={styles.closeButtonText}>Закрыть</Text>
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={styles.modalContentScroll}>
-            <View style={styles.modalContent}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Выберите товар</Text>
+              <TouchableOpacity
+                onPress={() => setShowProductSelector(false)}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+            {isLoadingData ? (
+              <ActivityIndicator size="large" color="#0000ff" />
+            ) : (
               <FlatList
                 data={products}
-                keyExtractor={item => item.id.toString()}
+                keyExtractor={(item) => item.id.toString()}
                 renderItem={({ item }) => (
                   <TouchableOpacity
-                    style={styles.productItem}
-                    onPress={() => handleProductSelect(item)}
+                    style={styles.productOption}
+                    onPress={() => {
+                      setSelectedProduct(item);
+                      setCurrentPrice(item.price.toString());
+                      setShowProductSelector(false);
+                    }}
                   >
-                    <View style={styles.productInfo}>
-                      <Text style={styles.productName}>{item.name}</Text>
-                      <Text style={styles.productStock}>
-                        В наличии: {item.category?.name === 'На развес'
-                          ? `${item.stock.toFixed(2)} кг`
-                          : `${Math.floor(item.stock)} шт.`}
-                      </Text>
-                      <Text style={styles.productPrice}>{item.price.toLocaleString()} ₽</Text>
-                    </View>
-                    <Ionicons name="add-circle-outline" size={24} color="#2196F3" />
+                    <Text style={styles.productOptionName}>{item.name}</Text>
+                    <Text style={styles.productOptionStock}>
+                      В наличии: {item.stock} {item.category?.name === 'На развес' ? 'кг' : 'шт.'}
+                    </Text>
                   </TouchableOpacity>
                 )}
-                ListEmptyComponent={
-                  <Text style={styles.emptyText}>Нет доступных товаров</Text>
-                }
               />
-
-              {selectedProduct && (
-                <View style={styles.modalContent}>
-                  <Text style={styles.sectionTitle}>Количество и цена</Text>
-                  <View style={styles.inputContainer}>
-                    <TextInput
-                      style={[styles.input, validationErrors.quantity ? styles.inputError : null]}
-                      placeholder={`Количество (${selectedProduct.category?.name === 'На развес' ? 'кг' : 'шт.'})`}
-                      keyboardType="numeric"
-                      value={currentQuantity}
-                      onChangeText={(text) => {
-                        setCurrentQuantity(text);
-                        setValidationErrors(prev => ({ ...prev, quantity: '' }));
-                      }}
-                    />
-                    {validationErrors.quantity ? (
-                      <Text style={styles.errorText}>{validationErrors.quantity}</Text>
-                    ) : null}
-                  </View>
-                  
-                  <View style={styles.inputContainer}>
-                    <TextInput
-                      style={[styles.input, validationErrors.price ? styles.inputError : null]}
-                      placeholder="Цена за единицу"
-                      keyboardType="numeric"
-                      value={currentPrice}
-                      onChangeText={(text) => {
-                        setCurrentPrice(text);
-                        setValidationErrors(prev => ({ ...prev, price: '' }));
-                      }}
-                    />
-                    {validationErrors.price ? (
-                      <Text style={styles.errorText}>{validationErrors.price}</Text>
-                    ) : null}
-                  </View>
-
-                  <TouchableOpacity
-                    style={[styles.addProductButton, !selectedProduct && styles.addProductButtonDisabled]}
-                    onPress={addProductToSale}
-                    disabled={!selectedProduct}
-                  >
-                    <Ionicons name="add" size={24} color="#fff" />
-                    <Text style={styles.addProductButtonText}>Добавить в продажу</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
-          </ScrollView>
+            )}
+          </View>
         </View>
       </Modal>
     </View>
@@ -483,277 +333,154 @@ export default function OfflineSalesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#fff',
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  statsContainer: {
+  formContainer: {
     padding: 16,
-    backgroundColor: '#fff',
-    marginBottom: 8,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
   },
-  statsTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    color: '#333',
-  },
-  statsSubtitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#666',
-    marginBottom: 8,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  statsLabel: {
-    fontSize: 14,
-    color: '#666',
-  },
-  statsValue: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#2196F3',
-  },
-  saleCard: {
-    backgroundColor: '#fff',
+  productSelector: {
+    borderWidth: 1,
+    borderColor: '#ddd',
     borderRadius: 8,
-    padding: 16,
-    marginBottom: 8,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  saleHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  newSaleButton: {
-    backgroundColor: '#4CAF50',
-    borderRadius: 8,
-    padding: 16,
-    margin: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  newSaleButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginLeft: 8,
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#2196F3',
-    elevation: 2,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  modalContent: {
-    padding: 16,
-  },
-  modalContentScroll: {
-    flex: 1,
-  },
-  closeButton: {
-    padding: 8,
-  },
-  closeButtonText: {
-    color: '#fff',
-    fontSize: 16,
-  },
-  selectedProducts: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    padding: 12,
     marginBottom: 16,
-    color: '#333',
   },
-  saleProductDetails: {
-    flex: 1,
+  label: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+    color: '#333',
   },
   productName: {
     fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 4,
-    color: '#333',
-  },
-  quantity: {
-    fontSize: 14,
-    color: '#666',
-    marginRight: 8,
-  },
-  price: {
-    fontSize: 14,
     color: '#666',
   },
-  saleProductTotal: {
-    marginLeft: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
+  inputContainer: {
+    marginBottom: 16,
   },
-  total: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginRight: 8,
-    color: '#4CAF50',
-  },
-  removeButton: {
-    padding: 8,
-  },
-  addProductButtonDisabled: {
-    backgroundColor: '#cccccc',
-  },
-  addProductButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#2196F3',
-    padding: 12,
+  input: {
+    borderWidth: 1,
+    borderColor: '#ddd',
     borderRadius: 8,
-    marginBottom: 24,
+    padding: 12,
+    fontSize: 16,
   },
-  addProductButtonText: {
+  errorText: {
+    color: '#FF4444',
+    fontSize: 14,
+    marginTop: 4,
+  },
+  addButton: {
+    backgroundColor: '#007AFF',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  buttonText: {
     color: '#fff',
     fontSize: 16,
-    marginLeft: 8,
+    fontWeight: '600',
+  },
+  productsContainer: {
+    marginTop: 24,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 16,
+    color: '#333',
   },
   productItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
   productInfo: {
     flex: 1,
   },
-  productStock: {
+  productItemName: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  productItemDetails: {
     fontSize: 14,
     color: '#666',
-    marginTop: 4,
   },
-  productPrice: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#4CAF50',
-    marginTop: 4,
-  },
-  disabledButton: {
-    backgroundColor: '#cccccc',
-    opacity: 0.7,
-  },
-  buttonLoader: {
+  removeButton: {
     padding: 8,
   },
-  completeSaleContainer: {
-    marginTop: 24,
+  totalContainer: {
+    marginTop: 16,
     paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: '#eee',
   },
-  totalLabel: {
+  totalText: {
     fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 16,
+    fontWeight: '600',
+    color: '#333',
+    textAlign: 'right',
   },
   completeButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#4CD964',
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
+    marginTop: 16,
   },
-  completeButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
+  disabledButton: {
+    opacity: 0.6,
   },
-  input: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#ddd',
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
   },
-  inputContainer: {
-    marginBottom: 16,
+  modalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    maxHeight: '80%',
   },
-  inputError: {
-    borderColor: '#ff0000',
-  },
-  errorText: {
-    color: '#ff0000',
-    fontSize: 12,
-    marginTop: 4,
-    marginLeft: 4,
-  },
-  emptyText: {
-    textAlign: 'center',
-    color: '#666',
-    marginTop: 24,
-  },
-  saleProductItem: {
+  modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
-    backgroundColor: '#fff',
-    marginBottom: 8,
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
   },
-  saleDate: {
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  closeButton: {
+    padding: 8,
+  },
+  productOption: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  productOptionName: {
+    fontSize: 16,
+    marginBottom: 4,
+  },
+  productOptionStock: {
     fontSize: 14,
     color: '#666',
   },
-  saleTotal: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#4CAF50',
+  priceDisplay: {
+    backgroundColor: '#f5f5f5',
+    justifyContent: 'center',
   },
-  quantityPrice: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  priceText: {
+    fontSize: 16,
+    color: '#333',
   },
 });
