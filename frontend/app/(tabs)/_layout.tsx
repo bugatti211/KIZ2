@@ -17,6 +17,7 @@ import NewSupplyScreen from './NewSupplyScreen';
 import SupplyHistoryScreen from './SupplyHistoryScreen';
 import OrdersScreen from './OrdersScreen';
 import OfflineSalesScreen from './OfflineSalesScreen';
+import SalesHistoryScreen from './SalesHistoryScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -76,10 +77,10 @@ function ProfileStack() {
           }
         }} 
       />
-      <Stack.Screen 
-        name="SupplyHistory" 
-        component={SupplyHistoryScreen} 
-        options={{ 
+      <Stack.Screen
+        name="SupplyHistory"
+        component={SupplyHistoryScreen}
+        options={{
           title: 'История поставок',
           headerShown: true,
           headerStyle: {
@@ -89,12 +90,27 @@ function ProfileStack() {
           headerTitleStyle: {
             fontWeight: 'bold',
           }
-        }} 
+        }}
       />
-      <Stack.Screen 
-        name="AddEditProductScreen" 
-        component={AddEditProductScreen} 
-        options={({ route }: any) => ({ 
+      <Stack.Screen
+        name="SalesHistory"
+        component={SalesHistoryScreen}
+        options={{
+          title: 'История продаж',
+          headerShown: true,
+          headerStyle: {
+            backgroundColor: '#fff',
+          },
+          headerTintColor: '#000',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          }
+        }}
+      />
+      <Stack.Screen
+        name="AddEditProductScreen"
+        component={AddEditProductScreen}
+        options={({ route }: any) => ({
           title: route.params?.product ? 'Редактировать товар' : 'Новый товар',
           headerShown: true,
           headerStyle: {
