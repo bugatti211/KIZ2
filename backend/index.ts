@@ -1070,16 +1070,47 @@ app.get('/seller-chats', authMiddleware as any, asyncHandler(async (req: Request
     return res.status(403).json({ error: 'Forbidden' });
   }
 
-  const messages = await ChatMessage.findAll({
-    where: {
-      [Op.or]: [{ senderId: sellerId }, { receiverId: sellerId }]
-    },
-    order: [['createdAt', 'DESC']]
-  });
+  try {
+    // Get all messages for the seller with user information
+    const messages = await ChatMessage.findAll({
+      where: {
+        [Op.or]: [{ senderId: sellerId }, { receiverId: sellerId }]
+      },
+      include: [
+        { model: User, as: 'sender', attributes: ['id', 'name', 'email', 'role'] },
+        { model: User, as: 'receiver', attributes: ['id', 'name', 'email', 'role'] }
+      ],
+      order: [['createdAt', 'DESC']]
+    });
 
-  const userIds = Array.from(new Set(messages.map(m => (m.senderId === sellerId ? m.receiverId : m.senderId))));
+    // Group messages by user and get the last message for each
+    const chatsByUser = new Map();
+    messages.forEach((message: any) => {
+      const otherUserId = message.senderId === sellerId ? message.receiverId : message.senderId;
+      const otherUser = message.senderId === sellerId ? message.receiver : message.sender;
+      
+      if (!chatsByUser.has(otherUserId)) {
+        chatsByUser.set(otherUserId, {
+          userId: otherUserId,
+          userName: otherUser?.name || `Пользователь ${otherUserId}`,
+          userEmail: otherUser?.email,
+          lastMessage: {
+            id: message.id,
+            senderId: message.senderId,
+            receiverId: message.receiverId,
+            text: message.text,
+            createdAt: message.createdAt
+          },
+          unreadCount: 0 // TODO: Implement unread count
+        });
+      }
+    });
 
-  res.json(userIds);
+    res.json(Array.from(chatsByUser.values()));
+  } catch (error) {
+    console.error('Error in /seller-chats:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 }));
 
 app.get('/seller-chats/:userId', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {

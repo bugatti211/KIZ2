@@ -45,7 +45,7 @@ export default function SellerChatsScreen() {
       
       if (data.role === UserRole.SELLER) {
         setIsSeller(true);
-        await loadChats(); // Immediately load chats when we confirm seller role
+        loadChats();
       } else {
         Alert.alert(
           'Переадресация',
@@ -85,6 +85,7 @@ export default function SellerChatsScreen() {
   const loadMessages = async (userId: number) => {
     if (!isSeller) return;
     
+    setLoading(true);
     try {
       const msgs = await chatApi.getMessagesWithUser(userId);
       setMessages(msgs);
@@ -106,31 +107,16 @@ export default function SellerChatsScreen() {
   useEffect(() => {
     if (!isSeller) return;
 
-    loadChats(); // Начальная загрузка
     const chatListInterval = setInterval(loadChats, 10000);
-
     return () => clearInterval(chatListInterval);
   }, [isSeller]);
 
-  // Обновляем сообщения активного чата каждые 2 секунды с улучшенной очисткой
+  // Обновляем сообщения активного чата каждые 2 секунды
   useEffect(() => {
     if (!isSeller || activeUser === null) return;
 
-    let isSubscribed = true;
-
-    const loadMessagesIfActive = async () => {
-      if (!isSubscribed) return;
-      await loadMessages(activeUser);
-    };
-
-    loadMessagesIfActive(); // Initial load
-    const messageInterval = setInterval(loadMessagesIfActive, 2000);
-
-    return () => {
-      isSubscribed = false;
-      clearInterval(messageInterval);
-      setMessages([]); // Clear messages when switching users
-    };
+    const messageInterval = setInterval(() => loadMessages(activeUser), 2000);
+    return () => clearInterval(messageInterval);
   }, [activeUser, isSeller]);
 
   // Загрузка начальных данных
@@ -160,14 +146,18 @@ export default function SellerChatsScreen() {
     return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
   };
 
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#2196F3" />
+      </View>
+    );
+  }
+
   if (activeUser === null) {
     return (
       <View style={styles.container}>
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#2196F3" />
-          </View>
-        ) : chats.length > 0 ? (
+        {chats.length > 0 ? (
           <>
             <Text style={styles.title}>Активные чаты</Text>
             <FlatList
@@ -219,7 +209,9 @@ export default function SellerChatsScreen() {
           <Ionicons name="arrow-back" size={24} color="#2196F3" />
           <Text style={styles.backButtonText}>Назад</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Пользователь {activeUser}</Text>
+        <Text style={styles.headerTitle}>
+          {chats.find(chat => chat.userId === activeUser)?.userName || `Пользователь ${activeUser}`}
+        </Text>
       </View>
 
       <FlatList
@@ -264,6 +256,11 @@ const styles = StyleSheet.create({
   container: { 
     flex: 1, 
     backgroundColor: '#f5f5f5',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   title: {
     fontSize: 20,
@@ -402,10 +399,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     alignSelf: 'flex-end',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   }
 });
