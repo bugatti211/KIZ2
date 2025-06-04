@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, RefreshControl, ScrollView, TouchableOpacity } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, CompositeNavigationProp } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { HeaderBackButton } from '@react-navigation/elements';
+import { TabParamList, ProfileStackParamList } from '../../types/navigation';
 import api from '../api';
 
 interface Sale {
@@ -23,7 +26,11 @@ export default function SalesHistoryScreen() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [activeTab, setActiveTab] = useState<'offline' | 'online'>('offline');
-  const navigation = useNavigation();
+  type NavigationProp = CompositeNavigationProp<
+    NativeStackNavigationProp<ProfileStackParamList>,
+    BottomTabNavigationProp<TabParamList>
+  >;
+  const navigation = useNavigation<NavigationProp>();
 
   useEffect(() => {
     navigation.setOptions({
@@ -115,7 +122,10 @@ export default function SalesHistoryScreen() {
               <TouchableOpacity
                 key={`order-${order.id}`}
                 style={styles.item}
-                onPress={() => navigation.navigate('OrderDetails', { order })}
+                onPress={() => navigation.navigate('profile', { 
+                  screen: 'OrderDetails',
+                  params: { order }
+                })}
               >
                 <Text style={styles.date}>{formatDate(order.createdAt)}</Text>
                 <Text style={styles.total}>Сумма: {Number(order.total).toLocaleString()} ₽</Text>
