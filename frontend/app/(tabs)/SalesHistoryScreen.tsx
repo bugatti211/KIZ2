@@ -111,10 +111,14 @@ export default function SalesHistoryScreen() {
         ? sales.length === 0
           ? (<Text style={styles.emptyText}>Записей нет</Text>)
           : sales.map(sale => (
-              <View key={`sale-${sale.id}`} style={styles.item}>
+              <TouchableOpacity
+                key={`sale-${sale.id}`}
+                style={styles.item}
+                onPress={() => navigation.navigate('SaleDetails', { sale })}
+              >
                 <Text style={styles.date}>{formatDate(sale.date)}</Text>
                 <Text style={styles.total}>Сумма: {Number(sale.total).toLocaleString()} ₽</Text>
-              </View>
+              </TouchableOpacity>
             ))
         : orders.length === 0
           ? (<Text style={styles.emptyText}>Записей нет</Text>)
