@@ -269,16 +269,14 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => <Ionicons name="grid" size={size} color={color} />,
         }}
       />
-      {!isStaff && (
-        <Tab.Screen
-          name="consult"
-          component={ConsultScreen}
-          options={{
-            title: 'Консультант',
-            tabBarIcon: ({ color, size }) => <Ionicons name="chatbubble" size={size} color={color} />,
-          }}
-        />
-      )}
+      <Tab.Screen
+        name="consult"
+        component={ConsultScreen}
+        options={{
+          title: 'Консультант',
+          tabBarIcon: ({ color, size }) => <Ionicons name="chatbubble" size={size} color={color} />,
+        }}
+      />
       {!isStaff && (
         <Tab.Screen
           name="cart"
