@@ -563,7 +563,8 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
               {/* Меню действий */}
               <View style={styles.menuContainer}>
                 {renderMenuItem('👤', 'Личные данные', () => setShowPersonalInfo(true))}
-                {renderMenuItem('🛍️', 'Мои заказы', () => router.push('/(tabs)/OrdersScreen'))}                {renderMenuItem('📦', 'Управление товарами', () => navigationNative.navigate('ProductManagementScreen'))}
+                {renderMenuItem('🛍️', 'Мои заказы', () => navigationNative.navigate('MyOrders'))}
+                {renderMenuItem('📦', 'Управление товарами', () => navigationNative.navigate('ProductManagementScreen'))}
                 {renderMenuItem('📋', 'Поставки', () => setShowSupplyModal(true))}
                 {renderMenuItem('💰', 'Оффлайн-продажи', () => navigationNative.navigate('OfflineSalesScreen'))}
                 {renderMenuItem('📈', 'История продаж', () => navigationNative.navigate('SalesHistory'))}

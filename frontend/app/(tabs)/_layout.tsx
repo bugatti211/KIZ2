@@ -16,6 +16,7 @@ import AdsScreen from './AdsScreen';
 import NewSupplyScreen from './NewSupplyScreen';
 import SupplyHistoryScreen from './SupplyHistoryScreen';
 import OrdersScreen from './OrdersScreen';
+import MyOrdersScreen from './MyOrdersScreen';
 import OfflineSalesScreen from './OfflineSalesScreen';
 import SalesHistoryScreen from './SalesHistoryScreen';
 import OrderDetailsScreen from './OrderDetailsScreen';
@@ -107,6 +108,17 @@ function ProfileStack() {
           headerTitleStyle: {
             fontWeight: 'bold',
           }
+        }}
+      />
+      <Stack.Screen
+        name="MyOrders"
+        component={MyOrdersScreen}
+        options={{
+          title: 'Мои заказы',
+          headerShown: true,
+          headerStyle: { backgroundColor: '#fff' },
+          headerTintColor: '#000',
+          headerTitleStyle: { fontWeight: 'bold' }
         }}
       />
       <Stack.Screen
