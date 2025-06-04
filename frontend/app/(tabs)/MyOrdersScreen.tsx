@@ -4,8 +4,8 @@ import { useNavigation, CompositeNavigationProp } from '@react-navigation/native
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { HeaderBackButton } from '@react-navigation/elements';
-import { TabParamList, ProfileStackParamList } from '../types/navigation';
-import api from './api';
+import { TabParamList, ProfileStackParamList } from '../../types/navigation';
+import api from '../api';
 
 interface Order {
   id: number;
