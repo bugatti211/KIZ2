@@ -18,7 +18,7 @@ import { FontAwesome5 } from '@expo/vector-icons';
 import { getContacts } from '../authApi';
 import { yandexGptService } from '../../services/yandexGptService';
 import { chatHistoryService, ChatMessage } from '../../services/chatHistoryService';
-import { sellerChatHistoryService } from '../../services/sellerChatHistoryService';
+import { chatApi } from '../api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 
@@ -29,6 +29,7 @@ export default function ConsultScreen() {
   const [loading, setLoading] = useState(true);
   const [inputMessage, setInputMessage] = useState('');
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const SELLER_ID = 1;
   const [inputSellerMessage, setInputSellerMessage] = useState('');
   const [sellerChatMessages, setSellerChatMessages] = useState<ChatMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -44,13 +45,11 @@ export default function ConsultScreen() {
       if (token) {
         const tokenData = JSON.parse(atob(token.split('.')[1]));
         chatHistoryService.setUserId(tokenData.id); // Set the user ID for chat history
-        sellerChatHistoryService.setUserId(tokenData.id);
         loadChatHistory();
-        loadSellerChatHistory();
+        loadSellerChatHistory(tokenData.id);
       } else {
         chatHistoryService.setUserId(null); // Clear the user ID when not authenticated
-        sellerChatHistoryService.setUserId(null);
-        loadSellerChatHistory();
+        loadSellerChatHistory(null);
       }
     };
     checkAuth();
@@ -66,9 +65,13 @@ export default function ConsultScreen() {
     }
   };
 
-  const loadSellerChatHistory = async () => {
+  const loadSellerChatHistory = async (userId: number | null) => {
     try {
-      const history = await sellerChatHistoryService.loadRecentMessages();
+      if (!userId) {
+        setSellerChatMessages([]);
+        return;
+      }
+      const history = await chatApi.getMessagesWithSeller(SELLER_ID);
       setSellerChatMessages(history);
     } catch (error) {
       console.error('Error loading seller chat history:', error);
@@ -126,38 +129,20 @@ export default function ConsultScreen() {
     }
   };
 
-  const sellerResponses = [
-    'Здравствуйте! Чем могу помочь?',
-    'Сейчас уточню информацию и вернусь к вам.',
-    'Спасибо за обращение!'
-  ];
-
   const sendSellerMessage = async () => {
     if (!inputSellerMessage.trim()) return;
 
-    const userMessage: Omit<ChatMessage, 'timestamp'> = {
-      role: 'user',
-      text: inputSellerMessage.trim()
-    };
+    const text = inputSellerMessage.trim();
 
     try {
-      await sellerChatHistoryService.saveMessage(userMessage);
-      setSellerChatMessages(prev => [...prev, { ...userMessage, timestamp: Date.now() }]);
+      await chatApi.sendMessageToSeller(SELLER_ID, text);
+      setSellerChatMessages(prev => [...prev, { role: 'user', text, timestamp: Date.now() }]);
       setInputSellerMessage('');
-      setIsTyping(true);
-
-      const response = sellerResponses[Math.floor(Math.random() * sellerResponses.length)];
-      const sellerMessage: Omit<ChatMessage, 'timestamp'> = {
-        role: 'assistant',
-        text: response
-      };
-
-      await sellerChatHistoryService.saveMessage(sellerMessage);
-      setSellerChatMessages(prev => [...prev, { ...sellerMessage, timestamp: Date.now() }]);
+      setIsTyping(false);
+      const history = await chatApi.getMessagesWithSeller(SELLER_ID);
+      setSellerChatMessages(history);
     } catch (error) {
       Alert.alert('Ошибка', 'Не удалось отправить сообщение');
-    } finally {
-      setIsTyping(false);
     }
   };
   const formatMessageTime = (timestamp: number) => {
@@ -177,7 +162,7 @@ export default function ConsultScreen() {
 
   const clearSellerHistory = async () => {
     try {
-      await sellerChatHistoryService.clearHistory();
+      // There is no backend endpoint to clear history, just reload
       setSellerChatMessages([]);
       Alert.alert('Успех', 'История чата очищена');
     } catch (error) {

@@ -21,6 +21,7 @@ import OfflineSalesScreen from './OfflineSalesScreen';
 import SalesHistoryScreen from './SalesHistoryScreen';
 import OrderDetailsScreen from './OrderDetailsScreen';
 import SaleDetailsScreen from './SaleDetailsScreen';
+import SellerChatsScreen from './SellerChatsScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -269,14 +270,16 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => <Ionicons name="grid" size={size} color={color} />,
         }}
       />
-      <Tab.Screen
-        name="consult"
-        component={ConsultScreen}
-        options={{
-          title: 'Консультант',
-          tabBarIcon: ({ color, size }) => <Ionicons name="chatbubble" size={size} color={color} />,
-        }}
-      />
+      {!isStaff && (
+        <Tab.Screen
+          name="consult"
+          component={ConsultScreen}
+          options={{
+            title: 'Консультант',
+            tabBarIcon: ({ color, size }) => <Ionicons name="chatbubble" size={size} color={color} />,
+          }}
+        />
+      )}
       {!isStaff && (
         <Tab.Screen
           name="cart"
@@ -285,6 +288,16 @@ export default function TabLayout() {
             title: 'Корзина',
             tabBarIcon: ({ color, size }) => <Ionicons name="cart" size={size} color={color} />,
           }}        />
+      )}
+      {isSeller && (
+        <Tab.Screen
+          name="sellerChats"
+          component={SellerChatsScreen}
+          options={{
+            title: 'Чаты',
+            tabBarIcon: ({ color, size }) => <Ionicons name="chatbubbles" size={size} color={color} />,
+          }}
+        />
       )}
       {(isAdmin || isSeller || isLoader) && (
         <Tab.Screen
@@ -317,6 +330,7 @@ function getTabTitle(name: string) {
     case 'Profile': return 'Профиль';
     case 'Ads': return 'Объявления';
     case 'Orders': return 'Заказы';
+    case 'sellerChats': return 'Чаты';
     default: return '';
   }
 }

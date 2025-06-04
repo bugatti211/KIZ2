@@ -129,4 +129,27 @@ export const orderApi = {
   }
 };
 
+export const chatApi = {
+  getMessagesWithSeller: async (sellerId: number) => {
+    const res = await api.get(`/chats/${sellerId}/messages`);
+    return res.data;
+  },
+  sendMessageToSeller: async (sellerId: number, text: string) => {
+    const res = await api.post(`/chats/${sellerId}/messages`, { text });
+    return res.data;
+  },
+  getSellerChats: async () => {
+    const res = await api.get('/seller-chats');
+    return res.data;
+  },
+  getMessagesWithUser: async (userId: number) => {
+    const res = await api.get(`/seller-chats/${userId}`);
+    return res.data;
+  },
+  sendMessageToUser: async (userId: number, text: string) => {
+    const res = await api.post(`/seller-chats/${userId}`, { text });
+    return res.data;
+  }
+};
+
 export default api;
