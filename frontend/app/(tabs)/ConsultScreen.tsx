@@ -16,6 +16,7 @@ import {
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { chatHistoryService } from '../../services/chatHistoryService';
 import { chatApi } from '../api';
+import { SELLER_ID } from '../config/env';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 
@@ -51,7 +52,6 @@ export default function ConsultScreen() {
   const [showAuth, setShowAuth] = useState(false);
   const [userId, setUserId] = useState<number | null>(null);
   const [isAuthChecked, setIsAuthChecked] = useState(false);
-  const SELLER_ID = 1;
 
   useEffect(() => {
     const checkAuth = async () => {

@@ -2,8 +2,7 @@ import axios, { AxiosError } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NavigationContainerRef } from '@react-navigation/native';
 import { jwtDecode } from 'jwt-decode';
-
-const API_URL = 'http://192.168.0.102:3000'; // Используйте ваш локальный IP
+import { API_URL } from './config/env';
 
 const api = axios.create({
   baseURL: API_URL,
