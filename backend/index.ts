@@ -736,7 +736,8 @@ app.post('/orders', authMiddleware as any, asyncHandler(async (req: Request, res
         deliveryMethod: orderData.deliveryMethod,
         paymentMethod: orderData.paymentMethod,
         comment: orderData.comment,
-        total: orderData.total
+        total: orderData.total,
+        status: 'collecting'
       }, { transaction: t });
 
       // Create order items
@@ -787,12 +788,29 @@ app.post('/orders/:id/confirm', authMiddleware as any, asyncHandler(async (req: 
     if (!order) {
       return res.status(404).json({ error: 'Order not found' });
     }
-    
+
     await order.update({ status: 'confirmed' });
     res.json(order);
   } catch (error) {
     console.error('Error confirming order:', error);
     res.status(500).json({ error: 'Failed to confirm order' });
+  }
+}));
+
+app.post('/orders/:id/assemble', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  try {
+    const order = await Order.findByPk(id);
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    const newStatus = order.deliveryMethod === 'Самовывоз' ? 'ready' : 'in_transit';
+    await order.update({ status: newStatus });
+    res.json(order);
+  } catch (error) {
+    console.error('Error updating order status:', error);
+    res.status(500).json({ error: 'Failed to update order status' });
   }
 }));
 

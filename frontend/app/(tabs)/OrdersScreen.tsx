@@ -1,7 +1,9 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../api';
+import { UserRole } from '../../constants/Roles';
 
 type Order = {
   id: number;
@@ -34,6 +36,22 @@ export default function OrdersScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [expandedOrders, setExpandedOrders] = useState<number[]>([]);
+  const [role, setRole] = useState<UserRole | null>(null);
+
+  const loadRole = useCallback(async () => {
+    const token = await AsyncStorage.getItem('token');
+    if (token) {
+      try {
+        const data = JSON.parse(atob(token.split('.')[1]));
+        setRole(data.role as UserRole);
+      } catch (e) {
+        console.error('Error parsing token:', e);
+        setRole(null);
+      }
+    } else {
+      setRole(null);
+    }
+  }, []);
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -55,7 +73,8 @@ export default function OrdersScreen() {
 
   useEffect(() => {
     fetchOrders();
-  }, [fetchOrders]);
+    loadRole();
+  }, [fetchOrders, loadRole]);
 
   const handleConfirmOrder = useCallback(async (orderId: number) => {
     Alert.alert(
@@ -76,6 +95,28 @@ export default function OrdersScreen() {
             } catch (error) {
               console.error('Error confirming order:', error);
               Alert.alert('Ошибка', 'Не удалось подтвердить заказ');
+            }
+          }
+        }
+      ]
+    );
+  }, [fetchOrders]);
+
+  const handleAssembleOrder = useCallback(async (orderId: number) => {
+    Alert.alert(
+      'Сборка заказа',
+      'Подтвердите, что заказ собран',
+      [
+        { text: 'Отмена', style: 'cancel' },
+        {
+          text: 'Заказ собран',
+          onPress: async () => {
+            try {
+              await api.post(`/orders/${orderId}/assemble`);
+              fetchOrders();
+            } catch (error) {
+              console.error('Error updating order status:', error);
+              Alert.alert('Ошибка', 'Не удалось обновить заказ');
             }
           }
         }
@@ -173,15 +214,28 @@ export default function OrdersScreen() {
               </View>
             )}
 
-            <TouchableOpacity
-              style={styles.confirmButton}
-              onPress={(e) => {
-                e.stopPropagation();
-                handleConfirmOrder(order.id);
-              }}
-            >
-              <Text style={styles.confirmButtonText}>Подтвердить заказ</Text>
-            </TouchableOpacity>
+            {(role === UserRole.ADMIN || role === UserRole.LOADER) && order.status === 'collecting' && (
+              <TouchableOpacity
+                style={styles.confirmButton}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleAssembleOrder(order.id);
+                }}
+              >
+                <Text style={styles.confirmButtonText}>Заказ собран</Text>
+              </TouchableOpacity>
+            )}
+            {(role === UserRole.ADMIN || role === UserRole.SELLER) && (order.status === 'ready' || order.status === 'in_transit') && (
+              <TouchableOpacity
+                style={styles.confirmButton}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleConfirmOrder(order.id);
+                }}
+              >
+                <Text style={styles.confirmButtonText}>Провести заказ</Text>
+              </TouchableOpacity>
+            )}
           </>
         )}
       </TouchableOpacity>
