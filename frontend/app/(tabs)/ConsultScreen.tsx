@@ -18,6 +18,7 @@ import { FontAwesome5 } from '@expo/vector-icons';
 import { getContacts } from '../authApi';
 import { yandexGptService } from '../../services/yandexGptService';
 import { chatHistoryService, ChatMessage } from '../../services/chatHistoryService';
+import { sellerChatHistoryService } from '../../services/sellerChatHistoryService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 
@@ -28,11 +29,14 @@ export default function ConsultScreen() {
   const [loading, setLoading] = useState(true);
   const [inputMessage, setInputMessage] = useState('');
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [inputSellerMessage, setInputSellerMessage] = useState('');
+  const [sellerChatMessages, setSellerChatMessages] = useState<ChatMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
-  const [isAuthChecked, setIsAuthChecked] = useState(false);  useEffect(() => {
+  const [isAuthChecked, setIsAuthChecked] = useState(false);
+  useEffect(() => {
     const checkAuth = async () => {
       const token = await AsyncStorage.getItem('token');
       setIsAuthenticated(!!token);
@@ -40,9 +44,13 @@ export default function ConsultScreen() {
       if (token) {
         const tokenData = JSON.parse(atob(token.split('.')[1]));
         chatHistoryService.setUserId(tokenData.id); // Set the user ID for chat history
+        sellerChatHistoryService.setUserId(tokenData.id);
         loadChatHistory();
+        loadSellerChatHistory();
       } else {
         chatHistoryService.setUserId(null); // Clear the user ID when not authenticated
+        sellerChatHistoryService.setUserId(null);
+        loadSellerChatHistory();
       }
     };
     checkAuth();
@@ -55,6 +63,15 @@ export default function ConsultScreen() {
       setChatMessages(history);
     } catch (error) {
       console.error('Error loading chat history:', error);
+    }
+  };
+
+  const loadSellerChatHistory = async () => {
+    try {
+      const history = await sellerChatHistoryService.loadRecentMessages();
+      setSellerChatMessages(history);
+    } catch (error) {
+      console.error('Error loading seller chat history:', error);
     }
   };
 
@@ -108,6 +125,41 @@ export default function ConsultScreen() {
       setIsTyping(false);
     }
   };
+
+  const sellerResponses = [
+    'Здравствуйте! Чем могу помочь?',
+    'Сейчас уточню информацию и вернусь к вам.',
+    'Спасибо за обращение!'
+  ];
+
+  const sendSellerMessage = async () => {
+    if (!inputSellerMessage.trim()) return;
+
+    const userMessage: Omit<ChatMessage, 'timestamp'> = {
+      role: 'user',
+      text: inputSellerMessage.trim()
+    };
+
+    try {
+      await sellerChatHistoryService.saveMessage(userMessage);
+      setSellerChatMessages(prev => [...prev, { ...userMessage, timestamp: Date.now() }]);
+      setInputSellerMessage('');
+      setIsTyping(true);
+
+      const response = sellerResponses[Math.floor(Math.random() * sellerResponses.length)];
+      const sellerMessage: Omit<ChatMessage, 'timestamp'> = {
+        role: 'assistant',
+        text: response
+      };
+
+      await sellerChatHistoryService.saveMessage(sellerMessage);
+      setSellerChatMessages(prev => [...prev, { ...sellerMessage, timestamp: Date.now() }]);
+    } catch (error) {
+      Alert.alert('Ошибка', 'Не удалось отправить сообщение');
+    } finally {
+      setIsTyping(false);
+    }
+  };
   const formatMessageTime = (timestamp: number) => {
     const date = new Date(timestamp);
     return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
@@ -117,6 +169,16 @@ export default function ConsultScreen() {
     try {
       await chatHistoryService.clearHistory();
       setChatMessages([]);
+      Alert.alert('Успех', 'История чата очищена');
+    } catch (error) {
+      Alert.alert('Ошибка', 'Не удалось очистить историю чата');
+    }
+  };
+
+  const clearSellerHistory = async () => {
+    try {
+      await sellerChatHistoryService.clearHistory();
+      setSellerChatMessages([]);
       Alert.alert('Успех', 'История чата очищена');
     } catch (error) {
       Alert.alert('Ошибка', 'Не удалось очистить историю чата');
@@ -146,29 +208,46 @@ export default function ConsultScreen() {
     switch (activeTab) {
       case 'employee':
         return (
-          <View style={styles.contentContainer}>
-            <Text style={styles.contentText}>Связаться с сотрудником</Text>
-            {loading ? (
-              <ActivityIndicator size="large" />
-            ) : (
-              <View style={styles.contactButtons}>
-                <TouchableOpacity
-                  style={[styles.contactButton, { backgroundColor: '#0088cc' }]}
-                  onPress={openTelegram}
-                >
-                  <FontAwesome5 name="telegram" size={24} color="white" />
-                  <Text style={styles.buttonText}>Telegram</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.contactButton, { backgroundColor: '#25D366' }]}
-                  onPress={openWhatsApp}
-                >
-                  <FontAwesome5 name="whatsapp" size={24} color="white" />
-                  <Text style={styles.buttonText}>WhatsApp</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
+          <KeyboardAvoidingView
+            style={styles.chatContainer}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+          >
+            {renderSellerHeader()}
+            <ScrollView
+              ref={scrollViewRef}
+              style={styles.messagesContainer}
+              onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+            >
+              {sellerChatMessages.map(renderMessage)}
+              {isTyping && (
+                <View style={styles.typingIndicator}>
+                  <ActivityIndicator size="small" color="#0066cc" />
+                  <Text style={styles.typingText}>Продавец печатает...</Text>
+                </View>
+              )}
+            </ScrollView>
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.input}
+                value={inputSellerMessage}
+                onChangeText={setInputSellerMessage}
+                placeholder="Введите сообщение..."
+                multiline
+              />
+              <TouchableOpacity
+                style={[styles.sendButton, !inputSellerMessage.trim() && styles.sendButtonDisabled]}
+                onPress={sendSellerMessage}
+                disabled={!inputSellerMessage.trim() || isTyping}
+              >
+                <FontAwesome5
+                  name="arrow-up"
+                  size={16}
+                  color={inputSellerMessage.trim() ? 'white' : '#ccc'}
+                />
+              </TouchableOpacity>
+            </View>
+          </KeyboardAvoidingView>
         );
       case 'ai':
         if (!isAuthenticated) {
@@ -238,6 +317,17 @@ export default function ConsultScreen() {
       <Text style={styles.chatTitle}>Чат с AI помощником</Text>
       {chatMessages.length > 0 && (
         <TouchableOpacity onPress={clearHistory} style={styles.clearButton}>
+          <FontAwesome5 name="trash" size={20} color="#666" />
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+
+  const renderSellerHeader = () => (
+    <View style={styles.chatHeader}>
+      <Text style={styles.chatTitle}>Чат с продавцом</Text>
+      {sellerChatMessages.length > 0 && (
+        <TouchableOpacity onPress={clearSellerHistory} style={styles.clearButton}>
           <FontAwesome5 name="trash" size={20} color="#666" />
         </TouchableOpacity>
       )}
