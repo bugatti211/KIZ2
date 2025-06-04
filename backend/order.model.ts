@@ -60,7 +60,7 @@ Order.init({
   status: {
     type: DataTypes.STRING,
     allowNull: false,
-    defaultValue: 'new',
+    defaultValue: 'collecting',
   },
   total: {
     type: DataTypes.DECIMAL(10, 2),
