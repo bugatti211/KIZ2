@@ -1106,7 +1106,10 @@ app.get('/seller-chats', authMiddleware as any, asyncHandler(async (req: Request
       }
     });
 
-    res.json(Array.from(chatsByUser.values()));
+    // Format the response as expected by the frontend
+    res.json({
+      chats: Array.from(chatsByUser.values())
+    });
   } catch (error) {
     console.error('Error in /seller-chats:', error);
     res.status(500).json({ error: 'Internal server error' });

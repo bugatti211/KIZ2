@@ -8,32 +8,37 @@ const api = axios.create({
   baseURL: API_URL,
 });
 
-// Добавляем токен в каждый запрос, если он есть
-api.interceptors.request.use(async (config) => {  try {
+// Add token to each request if it exists
+api.interceptors.request.use(async (config) => {
+  try {
     const token = await AsyncStorage.getItem('token');
     if (token) {
-      // Log token for debugging (remove in production)
-      console.log('Token from storage:', token);
-      
       try {
-        // Try to decode the token first to verify it's valid
         const decoded = jwtDecode(token);
-        if (decoded) {
-          config.headers = config.headers || {};
-          config.headers['Authorization'] = `Bearer ${token}`;
-          console.log('Token successfully verified and added to headers');
+        const currentTime = Date.now() / 1000;
+        
+        // Check if token is expired
+        if (decoded.exp && decoded.exp < currentTime) {
+          await AsyncStorage.removeItem('token');
+          if (navigationRef) {
+            navigationRef.navigate('(auth)/login');
+          }
+          throw new Error('Token expired');
         }
+
+        config.headers = config.headers || {};
+        config.headers.Authorization = `Bearer ${token}`;
       } catch (decodeError) {
-        console.error('Invalid token in storage:', decodeError);
+        console.error('Invalid token:', decodeError);
         await AsyncStorage.removeItem('token');
         if (navigationRef) {
-          navigationRef.navigate('LoginScreen');
+          navigationRef.navigate('(auth)/login');
         }
       }
     }
     return config;
   } catch (error) {
-    console.error('Error processing token:', error);
+    console.error('Error in request interceptor:', error);
     return config;
   }
 });
@@ -43,11 +48,12 @@ export const setNavigationRef = (ref: NavigationContainerRef<any>) => {
   navigationRef = ref;
 };
 
-// Глобальный перехватчик ошибок для автоматического logout при истечении токена
+// Global error interceptor for automatic logout on token expiration
 api.interceptors.response.use(
   response => response,
   async error => {
-    if (error.response && error.response.status === 401) {
+    if (error?.response?.status === 401) {
+      console.log('Unauthorized request, clearing token');
       await AsyncStorage.removeItem('token');
       if (navigationRef) {
         navigationRef.navigate('LoginScreen');
@@ -130,24 +136,50 @@ export const orderApi = {
 
 export const chatApi = {
   getMessagesWithSeller: async (sellerId: number) => {
-    const res = await api.get(`/chats/${sellerId}/messages`);
-    return res.data;
+    try {
+      const res = await api.get(`/chats/${sellerId}/messages`);
+      return res.data;
+    } catch (error) {
+      console.error('Error getting messages with seller:', error);
+      throw error;
+    }
   },
   sendMessageToSeller: async (sellerId: number, text: string) => {
-    const res = await api.post(`/chats/${sellerId}/messages`, { text });
-    return res.data;
+    try {
+      const res = await api.post(`/chats/${sellerId}/messages`, { text });
+      return res.data;
+    } catch (error) {
+      console.error('Error sending message to seller:', error);
+      throw error;
+    }
   },
   getSellerChats: async () => {
-    const res = await api.get('/seller-chats');
-    return res.data;
+    try {
+      const res = await api.get('/seller-chats');
+      console.log('Seller chats response:', res.data);
+      return res.data;
+    } catch (error) {
+      console.error('Error getting seller chats:', error);
+      throw error;
+    }
   },
   getMessagesWithUser: async (userId: number) => {
-    const res = await api.get(`/seller-chats/${userId}`);
-    return res.data;
+    try {
+      const res = await api.get(`/seller-chats/${userId}/messages`);
+      return res.data;
+    } catch (error) {
+      console.error('Error getting messages with user:', error);
+      throw error;
+    }
   },
   sendMessageToUser: async (userId: number, text: string) => {
-    const res = await api.post(`/seller-chats/${userId}`, { text });
-    return res.data;
+    try {
+      const res = await api.post(`/seller-chats/${userId}/messages`, { text });
+      return res.data;
+    } catch (error) {
+      console.error('Error sending message to user:', error);
+      throw error;
+    }
   }
 };
 
