@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { UserRole } from '../../constants/Roles';
 import { useRouter } from 'expo-router';
 import { decodeToken } from '../utils/tokenUtils';
+import { useIsFocused } from '@react-navigation/native';
 
 interface ChatMessage {
   id: number;
@@ -24,6 +25,7 @@ interface ChatInfo {
 
 export default function SellerChatsScreen() {
   const router = useRouter();
+  const isFocused = useIsFocused();
   const [chats, setChats] = useState<ChatInfo[]>([]);
   const [activeUser, setActiveUser] = useState<number | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -138,17 +140,17 @@ export default function SellerChatsScreen() {
 
   // Обновляем список активных чатов каждые 10 секунд
   useEffect(() => {
-    if (!isSeller) return;
+    if (!isFocused || !isSeller) return;
 
     loadChats(); // Начальная загрузка
     const chatListInterval = setInterval(loadChats, 10000);
 
     return () => clearInterval(chatListInterval);
-  }, [isSeller]);
+  }, [isFocused, isSeller]);
 
   // Обновляем сообщения активного чата каждые 2 секунды с улучшенной очисткой
   useEffect(() => {
-    if (!isSeller || activeUser === null) return;
+    if (!isFocused || !isSeller || activeUser === null) return;
 
     let isSubscribed = true;
 
@@ -165,12 +167,13 @@ export default function SellerChatsScreen() {
       clearInterval(messageInterval);
       setMessages([]); // Clear messages when switching users
     };
-  }, [activeUser, isSeller]);
+  }, [isFocused, activeUser, isSeller]);
 
   // Загрузка начальных данных
   useEffect(() => {
+    if (!isFocused) return;
     loadUserData();
-  }, []);
+  }, [isFocused]);
 
   const sendMessage = async () => {
     if (!input.trim() || activeUser === null) return;

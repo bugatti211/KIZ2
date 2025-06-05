@@ -19,6 +19,7 @@ import { chatApi } from '../api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { decodeToken } from '../utils/tokenUtils';
 import { useRouter } from 'expo-router';
+import { useIsFocused } from '@react-navigation/native';
 
 interface Message {
   id?: number;
@@ -40,6 +41,7 @@ interface ApiMessage {
 
 export default function ConsultScreen() {
   const router = useRouter();
+  const isFocused = useIsFocused();
   const [activeTab, setActiveTab] = useState<'ai' | 'seller'>('seller');
   const [inputMessage, setInputMessage] = useState('');
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
@@ -64,6 +66,8 @@ export default function ConsultScreen() {
   };
 
   useEffect(() => {
+    if (!isFocused) return;
+
     const checkAuth = async () => {
       const token = await AsyncStorage.getItem('token');
       setIsAuthenticated(!!token);
@@ -90,17 +94,17 @@ export default function ConsultScreen() {
     };
     checkAuth();
     fetchSellerInfo();
-  }, []);
+  }, [isFocused]);
 
   useEffect(() => {
-    if (!userId || !sellerId || activeTab !== 'seller') return;
+    if (!isFocused || !userId || !sellerId || activeTab !== 'seller') return;
 
     const interval = setInterval(() => {
       loadSellerChatHistory(userId, sellerId);
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [userId, sellerId, activeTab]);
+  }, [isFocused, userId, sellerId, activeTab]);
 
   const loadChatHistory = async () => {
     try {
@@ -131,6 +135,14 @@ export default function ConsultScreen() {
       setSellerChatMessages(formattedMessages);
     } catch (error) {
       console.error('Error loading seller chat history:', error);
+      const status = (error as any)?.response?.status;
+      if (status === 401) {
+        await AsyncStorage.removeItem('token');
+        setIsAuthenticated(false);
+        setUserId(null);
+        chatHistoryService.setUserId(null);
+        setSellerChatMessages([]);
+      }
     }
   };
   const sendMessage = async () => {
