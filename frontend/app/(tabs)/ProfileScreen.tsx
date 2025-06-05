@@ -39,7 +39,7 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
   const [user, setUser] = useState<ProfileUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const { showAuthModal, setShowAuthModal, setAuthMode } = useAuthModal();  const isStaffUser = user ? [
+  const { showAuthModal, setShowAuthModal, setAuthMode } = useAuthModal();  const isStaffUser = user?.role ? [
     UserRole.ADMIN,
     UserRole.SELLER,
     UserRole.ACCOUNTANT,
@@ -313,34 +313,32 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
   };
 
   const renderMenuItem = (icon: string, title: string, onPress: () => void, backgroundColor?: string) => {
-    // Для неавторизованных пользователей скрываем все пункты меню
+    // For unauthenticated users, hide all menu items
     if (!user) {
       return null;
     }
     
-    // Проверяем права доступа на основе роли пользователя
-    if (user) {      // Только для админа
-      if (title === 'Регистрация сотрудника' && user.role !== UserRole.ADMIN) {
-        return null;
-      }
+    // Access validation based on user role
+    switch (title) {
+      case 'Регистрация сотрудника':
+        if (user.role !== UserRole.ADMIN) return null;
+        break;
       
-      // Только для админа
-      if (title === 'Объявления на модерацию' && user.role !== UserRole.ADMIN) {
-        return null;
-      }
-      // Только для админа и продавцов
-      if (title === 'Управление товарами' || title === 'Оффлайн-продажи' || title === 'История продаж') {
-        if (user.role !== UserRole.ADMIN && user.role !== UserRole.SELLER) {
-          return null;
-        }
-      }
+      case 'Объявления на модерацию':
+        if (user.role !== UserRole.ADMIN) return null;
+        break;
       
-      // Поставки доступны админам, продавцам и грузчикам
-      if (title === 'Поставки') {
-        if (user.role !== UserRole.ADMIN && user.role !== UserRole.SELLER && user.role !== UserRole.LOADER) {
-          return null;
-        }
-      }
+      case 'Управление товарами':
+      case 'Оффлайн-продажи':
+      case 'История продаж':
+        if (user.role !== UserRole.ADMIN && user.role !== UserRole.SELLER) return null;
+        break;
+      
+      case 'Поставки':
+        if (user.role !== UserRole.ADMIN && 
+            user.role !== UserRole.SELLER && 
+            user.role !== UserRole.LOADER) return null;
+        break;
     }
 
     return (
@@ -566,9 +564,9 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
           {user ? (
             <>
               {/* Профиль пользователя */}              <View style={styles.profileContainer}>
-                <Text style={styles.name}>{user.name}</Text>
-                <Text style={styles.email}>{user.email}</Text>
-                <Text style={styles.role}>{roleTranslations[user.role as UserRole] || user.role}</Text>
+                <Text style={styles.name}>{user?.name ?? ''}</Text>
+                <Text style={styles.email}>{user?.email ?? ''}</Text>
+                <Text style={styles.role}>{user?.role ? roleTranslations[user.role as UserRole] || user.role : ''}</Text>
               </View>
               {/* Меню действий */}
               <View style={styles.menuContainer}>                {renderMenuItem('👤', 'Личные данные', () => setShowPersonalInfo(true))}
@@ -581,6 +579,13 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
                 {canAccessSales && renderMenuItem('💰', 'Оффлайн-продажи', () => navigationNative.navigate('OfflineSalesScreen'))}
                 {canAccessSales && renderMenuItem('📈', 'История продаж', () => navigationNative.navigate('SalesHistory'))}
                 {renderMenuItem('👥', 'Регистрация сотрудника', () => setShowEmployeeRegistration(true))}
+                {user?.role === UserRole.ADMIN && (                  <TouchableOpacity
+                    style={styles.menuItem}
+                    onPress={() => navigationNative.navigate('StaffManagement')}
+                  >
+                    <Text style={styles.menuText}>Управление персоналом</Text>
+                  </TouchableOpacity>
+                )}
                 {renderMenuItem('🚪', 'Выйти', handleLogout, '#FFE5E5')}
               </View>
             </>

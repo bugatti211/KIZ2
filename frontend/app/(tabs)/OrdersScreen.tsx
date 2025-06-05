@@ -4,8 +4,10 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../api';
 import { UserRole } from '../../constants/Roles';
+import { OrderStatus, getOrderStatusTranslation } from '../../constants/Orders';
 import { decodeToken } from '../utils/tokenUtils';
 
+// Update the Order type to use OrderStatus
 type Order = {
   id: number;
   userId: number;
@@ -15,7 +17,7 @@ type Order = {
   deliveryMethod: 'Самовывоз' | 'Доставка';
   paymentMethod: 'картой' | 'наличные';
   comment: string;
-  status: string;
+  status: OrderStatus;
   total: number;
   createdAt: string;
   items: Array<{
@@ -60,7 +62,7 @@ export default function OrdersScreen() {
     try {
       setLoading(true);
       const response = await api.get('/orders');
-      setOrders(response.data.filter((order: Order) => order.status !== 'confirmed'));
+      setOrders(response.data.filter((order: Order) => order.status !== OrderStatus.CONFIRMED));
     } catch (error) {
       console.error('Error fetching orders:', error);
     } finally {
@@ -158,6 +160,7 @@ export default function OrdersScreen() {
           <View style={styles.orderHeaderLeft}>
             <Text style={styles.orderNumber}>Заказ №{order.id}</Text>
             <Text style={styles.orderDate}>{formatDate(order.createdAt)}</Text>
+            <Text style={styles.orderStatus}>Статус: {getOrderStatusTranslation(order.status)}</Text>
           </View>
           <Ionicons 
             name={isExpanded ? 'chevron-up' : 'chevron-down'} 
@@ -217,7 +220,7 @@ export default function OrdersScreen() {
               </View>
             )}
 
-            {(role === UserRole.ADMIN || role === UserRole.LOADER) && order.status === 'collecting' && (
+            {(role === UserRole.ADMIN || role === UserRole.LOADER) && order.status === OrderStatus.COLLECTING && (
               <TouchableOpacity
                 style={styles.confirmButton}
                 onPress={(e) => {
@@ -228,7 +231,7 @@ export default function OrdersScreen() {
                 <Text style={styles.confirmButtonText}>Заказ собран</Text>
               </TouchableOpacity>
             )}
-            {(role === UserRole.ADMIN || role === UserRole.SELLER) && (order.status === 'ready' || order.status === 'in_transit') && (
+            {(role === UserRole.ADMIN || role === UserRole.SELLER) && (order.status === OrderStatus.READY || order.status === OrderStatus.IN_TRANSIT) && (
               <TouchableOpacity
                 style={styles.confirmButton}
                 onPress={(e) => {
@@ -387,6 +390,11 @@ const styles = StyleSheet.create({
   orderDate: {
     fontSize: 14,
     color: '#666',
+  },
+  orderStatus: {
+    fontSize: 14,
+    color: '#2196F3',
+    marginTop: 4,
   },
   orderInfo: {
     marginBottom: 16,
