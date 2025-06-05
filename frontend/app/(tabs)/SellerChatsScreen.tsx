@@ -4,6 +4,7 @@ import { chatApi } from '../api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { UserRole } from '../../constants/Roles';
+import { decodeToken } from '../utils/tokenUtils';
 import { useRouter } from 'expo-router';
 
 interface ChatMessage {
@@ -40,9 +41,14 @@ export default function SellerChatsScreen() {
         return;
       }
 
-      const data = JSON.parse(atob(token.split('.')[1]));
+      const data = decodeToken(token);
+      if (!data) {
+        await AsyncStorage.removeItem('token');
+        router.replace('/(auth)/login');
+        return;
+      }
       setMyId(data.id);
-      
+
       if (data.role === UserRole.SELLER) {
         setIsSeller(true);
         await loadChats(); // Immediately load chats when we confirm seller role
@@ -64,14 +70,18 @@ export default function SellerChatsScreen() {
 
   const loadChats = async () => {
     if (!isSeller) return;
-    
+
     try {
       const chatList = await chatApi.getSellerChats();
       setChats(chatList);
       setLoading(false);
-    } catch (e) {
+    } catch (e: any) {
       console.error('Error loading chats', e);
-      if ((e as any)?.response?.status === 403) {
+      if (e?.response?.status === 401) {
+        await AsyncStorage.removeItem('token');
+        setIsSeller(false);
+        router.replace('/(auth)/login');
+      } else if (e?.response?.status === 403) {
         Alert.alert(
           'Ошибка доступа',
           'У вас нет прав для просмотра чатов',
@@ -84,13 +94,17 @@ export default function SellerChatsScreen() {
   
   const loadMessages = async (userId: number) => {
     if (!isSeller) return;
-    
+
     try {
       const msgs = await chatApi.getMessagesWithUser(userId);
       setMessages(msgs);
-    } catch (e) {
+    } catch (e: any) {
       console.error('Error loading messages', e);
-      if ((e as any)?.response?.status === 403) {
+      if (e?.response?.status === 401) {
+        await AsyncStorage.removeItem('token');
+        setIsSeller(false);
+        router.replace('/(auth)/login');
+      } else if (e?.response?.status === 403) {
         Alert.alert(
           'Ошибка доступа',
           'У вас нет прав для просмотра сообщений',
@@ -149,9 +163,15 @@ export default function SellerChatsScreen() {
       if (response) {
         setMessages(prev => [...prev, response]);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('Error sending message', e);
-      Alert.alert('Ошибка', 'Не удалось отправить сообщение. Попробуйте еще раз.');
+      if (e?.response?.status === 401) {
+        await AsyncStorage.removeItem('token');
+        setIsSeller(false);
+        router.replace('/(auth)/login');
+      } else {
+        Alert.alert('Ошибка', 'Не удалось отправить сообщение. Попробуйте еще раз.');
+      }
     }
   };
 

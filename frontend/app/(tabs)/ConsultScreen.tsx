@@ -18,6 +18,7 @@ import { chatHistoryService } from '../../services/chatHistoryService';
 import { chatApi } from '../api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
+import { decodeToken } from '../utils/tokenUtils';
 
 interface Message {
   id?: number;
@@ -56,23 +57,31 @@ export default function ConsultScreen() {
   useEffect(() => {
     const checkAuth = async () => {
       const token = await AsyncStorage.getItem('token');
-      setIsAuthenticated(!!token);
       setIsAuthChecked(true);
+
       if (token) {
-        const tokenData = JSON.parse(atob(token.split('.')[1]));
-        const currentUserId = tokenData.id;
-        setUserId(currentUserId);
-        chatHistoryService.setUserId(currentUserId);
-        loadChatHistory();
-        const info = await chatApi.getSellerInfo();
-        setSellerId(info.id);
-        loadSellerChatHistory(currentUserId, info.id);
-      } else {
-        setUserId(null);
-        chatHistoryService.setUserId(null);
-        setSellerId(null);
-        loadSellerChatHistory(null, null);
+        const decoded = decodeToken(token);
+
+        if (decoded) {
+          setIsAuthenticated(true);
+          const currentUserId = decoded.id;
+          setUserId(currentUserId);
+          chatHistoryService.setUserId(currentUserId);
+          loadChatHistory();
+          const info = await chatApi.getSellerInfo();
+          setSellerId(info.id);
+          loadSellerChatHistory(currentUserId, info.id);
+          return;
+        }
+
+        await AsyncStorage.removeItem('token');
       }
+
+      setIsAuthenticated(false);
+      setUserId(null);
+      chatHistoryService.setUserId(null);
+      setSellerId(null);
+      loadSellerChatHistory(null, null);
     };
     checkAuth();
   }, []);
@@ -103,9 +112,11 @@ export default function ConsultScreen() {
         setSellerChatMessages([]);
         return;
       }
+
       const history: ApiMessage[] = await chatApi.getMessagesWithSeller(
         currentSellerId
       );
+
       const formattedMessages: Message[] = history.map((msg: ApiMessage) => ({
         id: msg.id,
         senderId: msg.senderId,
@@ -114,8 +125,15 @@ export default function ConsultScreen() {
         text: msg.text,
         timestamp: new Date(msg.createdAt || Date.now()).getTime()
       }));
+
       setSellerChatMessages(formattedMessages);
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.response?.status === 401) {
+        await AsyncStorage.removeItem('token');
+        setIsAuthenticated(false);
+        setUserId(null);
+        setSellerId(null);
+      }
       console.error('Error loading seller chat history:', error);
     }
   };
@@ -170,7 +188,13 @@ export default function ConsultScreen() {
         };
         setSellerChatMessages(prev => [...prev, newMessage]);
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.response?.status === 401) {
+        await AsyncStorage.removeItem('token');
+        setIsAuthenticated(false);
+        setUserId(null);
+        setSellerId(null);
+      }
       console.error('Error sending message:', error);
       Alert.alert('Ошибка', 'Не удалось отправить сообщение. Попробуйте еще раз.');
     } finally {
