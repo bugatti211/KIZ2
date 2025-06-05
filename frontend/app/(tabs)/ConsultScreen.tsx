@@ -63,10 +63,9 @@ export default function ConsultScreen() {
         const decoded = decodeToken(token);
 
         if (decoded) {
-          setIsAuthenticated(true);
-          const currentUserId = decoded.id;
+          setIsAuthenticated(true);          const currentUserId = decoded.id;
           setUserId(currentUserId);
-          chatHistoryService.setUserId(currentUserId);
+          chatHistoryService.setUserId(currentUserId.toString());
           loadChatHistory();
           const info = await chatApi.getSellerInfo();
           setSellerId(info.id);
