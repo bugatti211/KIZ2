@@ -40,90 +40,132 @@ export default function SellerChatsScreen() {
         return;
       }
 
-      const data = JSON.parse(atob(token.split('.')[1]));
-      setMyId(data.id);
-      
-      if (data.role === UserRole.SELLER) {
-        setIsSeller(true);
-        loadChats();
-      } else {
-        Alert.alert(
-          'Переадресация',
-          'Для общения с продавцом перейдите в раздел "Консультация"',
-          [{ 
-            text: 'Перейти', 
-            onPress: () => router.replace('/(tabs)/ConsultScreen')
-          }]
-        );
+      try {
+        const data = JSON.parse(atob(token.split('.')[1]));
+        setMyId(data.id);
+        
+        if (data.role === UserRole.SELLER) {
+          setIsSeller(true);
+          loadChats();
+        } else {
+          router.replace('/(tabs)/ConsultScreen');
+        }
+      } catch (e) {
+        console.error('Error parsing token:', e);
+        router.replace('/(tabs)/ConsultScreen');
       }
     } catch (e) {
       console.error('Error loading user data:', e);
       router.replace('/(tabs)/ConsultScreen');
     }
   };
-
   const loadChats = async () => {
-    if (!isSeller) return;
-    
-    try {
+    if (!isSeller) {
+      router.replace('/(tabs)/ConsultScreen');
+      return;
+    }
+      try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) {
+        router.replace('/(auth)/login');
+        return;
+      }
+
       const chatList = await chatApi.getSellerChats();
-      setChats(chatList);
-      setLoading(false);
-    } catch (e) {
-      console.error('Error loading chats', e);
-      if ((e as any)?.response?.status === 403) {
+      if (isComponentMounted) {
+        setChats(chatList.chats || []);
+        setLoading(false);
+      }
+    } catch (e: any) {
+      console.error('Error loading chats:', e);
+      if (e?.response?.status === 401) {
+        await AsyncStorage.removeItem('token');
+        router.replace('/(auth)/login');
+      } else if (e?.response?.status === 403) {
+        router.replace('/(tabs)/ConsultScreen');
+      } else {
         Alert.alert(
-          'Ошибка доступа',
-          'У вас нет прав для просмотра чатов',
+          'Ошибка',
+          'Не удалось загрузить список чатов. Попробуйте позже.',
           [{ text: 'OK' }]
         );
       }
       setLoading(false);
     }
   };
-  
-  const loadMessages = async (userId: number) => {
-    if (!isSeller) return;
+    const loadMessages = async (userId: number) => {
+    if (!isSeller) {
+      router.replace('/(tabs)/ConsultScreen');
+      return;
+    }
     
-    setLoading(true);
     try {
-      const msgs = await chatApi.getMessagesWithUser(userId);
-      setMessages(msgs);
+      const token = await AsyncStorage.getItem('token');
+      if (!token) {
+        router.replace('/(auth)/login');
+        return;
+      }      const msgs = await chatApi.getMessagesWithUser(userId);
+      if (isComponentMounted) {
+        setMessages(msgs);
+      }
     } catch (e) {
       console.error('Error loading messages', e);
-      if ((e as any)?.response?.status === 403) {
+      if ((e as any)?.response?.status === 401) {
+        await AsyncStorage.removeItem('token');
+        router.replace('/(auth)/login');
+      } else if ((e as any)?.response?.status === 403) {
         Alert.alert(
           'Ошибка доступа',
           'У вас нет прав для просмотра сообщений',
+          [{ text: 'OK', onPress: () => router.replace('/(tabs)/ConsultScreen') }]
+        );
+      } else {
+        Alert.alert(
+          'Ошибка',
+          'Не удалось загрузить сообщения. Попробуйте позже.',
           [{ text: 'OK' }]
         );
       }
-    } finally {
-      setLoading(false);
     }
   };
-
-  // Обновляем список активных чатов каждые 10 секунд
+  // Обновляем список активных чатов каждые 10 секунд только если страница активна
   useEffect(() => {
-    if (!isSeller) return;
+    if (!isSeller) {
+      router.replace('/(tabs)/ConsultScreen');
+      return;
+    }
 
     const chatListInterval = setInterval(loadChats, 10000);
-    return () => clearInterval(chatListInterval);
+    return () => {
+      clearInterval(chatListInterval);
+    };
   }, [isSeller]);
 
-  // Обновляем сообщения активного чата каждые 2 секунды
+  // Обновляем сообщения активного чата каждые 2 секунды только если пользователь выбран
   useEffect(() => {
-    if (!isSeller || activeUser === null) return;
+    if (!isSeller) {
+      router.replace('/(tabs)/ConsultScreen');
+      return;
+    }
 
+    if (activeUser === null) return;
+
+    loadMessages(activeUser); // Initial load
     const messageInterval = setInterval(() => loadMessages(activeUser), 2000);
-    return () => clearInterval(messageInterval);
+    return () => {
+      clearInterval(messageInterval);
+    };
   }, [activeUser, isSeller]);
 
-  // Загрузка начальных данных
+  // Загрузка начальных данных  // Cleanup function to prevent memory leaks and state updates on unmounted component
+  const [isComponentMounted, setIsComponentMounted] = useState(true);
+
   useEffect(() => {
     loadUserData();
+    return () => {
+      setIsComponentMounted(false);
+    };
   }, []);
-
   const sendMessage = async () => {
     if (!input.trim() || activeUser === null) return;
     
@@ -131,13 +173,28 @@ export default function SellerChatsScreen() {
     setInput('');
     
     try {
-      const response = await chatApi.sendMessageToUser(activeUser, text);
-      if (response) {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) {
+        router.replace('/(auth)/login');
+        return;
+      }      const response = await chatApi.sendMessageToUser(activeUser, text);
+      if (response && isComponentMounted) {
         setMessages(prev => [...prev, response]);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('Error sending message', e);
-      Alert.alert('Ошибка', 'Не удалось отправить сообщение. Попробуйте еще раз.');
+      if (e?.response?.status === 401) {
+        await AsyncStorage.removeItem('token');
+        router.replace('/(auth)/login');
+      } else if (e?.response?.status === 403) {
+        Alert.alert(
+          'Ошибка доступа',
+          'У вас нет прав для отправки сообщений',
+          [{ text: 'OK', onPress: () => router.replace('/(tabs)/ConsultScreen') }]
+        );
+      } else {
+        Alert.alert('Ошибка', 'Не удалось отправить сообщение. Попробуйте еще раз.');
+      }
     }
   };
 

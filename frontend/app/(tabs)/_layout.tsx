@@ -3,6 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authEvents, AUTH_EVENTS } from '../events';
 import { Ionicons } from '@expo/vector-icons';
+import { UserRole } from '../../constants/Roles';
 import CatalogScreen from './CatalogScreen';
 import ConsultScreen from './ConsultScreen';
 import CartScreen from './CartScreen';
@@ -206,6 +207,7 @@ export default function TabLayout() {
   const [isStaff, setIsStaff] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [token, setToken] = useState<string | null>(null);
+
   const checkAdminStatus = useCallback(async () => {
     try {
       const currentToken = await AsyncStorage.getItem('token');
@@ -215,15 +217,17 @@ export default function TabLayout() {
       if (currentToken) {
         try {
           const tokenData = JSON.parse(atob(currentToken.split('.')[1]));
-          setIsAdmin(tokenData.role === 'admin');
-          setIsSeller(tokenData.role === 'seller');
-          setIsLoader(tokenData.role === 'loader');
-          setIsStaff(['admin', 'seller', 'accountant', 'loader'].includes(tokenData.role));
+          setIsAdmin(tokenData.role === UserRole.ADMIN);
+          setIsSeller(tokenData.role === UserRole.SELLER);
+          setIsLoader(tokenData.role === UserRole.LOADER);
+          setIsStaff([UserRole.ADMIN, UserRole.SELLER, UserRole.ACCOUNTANT, UserRole.LOADER].includes(tokenData.role));
         } catch (e) {
-          console.error('Error parsing token:', e);          setIsAdmin(false);
+          console.error('Error parsing token:', e);
+          setIsAdmin(false);
           setIsSeller(false);
           setIsLoader(false);
           setIsStaff(false);
+          await AsyncStorage.removeItem('token');
         }
       } else {
         setIsAdmin(false);
@@ -235,6 +239,9 @@ export default function TabLayout() {
       console.error('Error checking admin status:', error);
       setIsAdmin(false);
       setIsAuthenticated(false);
+      setIsSeller(false);
+      setIsLoader(false);
+      setIsStaff(false);
     }
   }, []);
 

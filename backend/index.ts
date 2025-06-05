@@ -1140,7 +1140,7 @@ app.get('/seller-chats/:userId', authMiddleware as any, asyncHandler(async (req:
   res.json(messages);
 }));
 
-app.post('/seller-chats/:userId', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
+app.post('/seller-chats/:userId/messages', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
   const { userId } = req.params;
   const { text } = req.body;
   // @ts-ignore
@@ -1163,6 +1163,30 @@ app.post('/seller-chats/:userId', authMiddleware as any, asyncHandler(async (req
   });
 
   res.status(201).json(message);
+}));
+
+app.get('/seller-chats/:userId/messages', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
+  const { userId } = req.params;
+  // @ts-ignore
+  const sellerId = req.user.id;
+  // @ts-ignore
+  const role = req.user.role;
+
+  if (role !== UserRole.SELLER) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  const messages = await ChatMessage.findAll({
+    where: {
+      [Op.or]: [
+        { senderId: sellerId, receiverId: userId },
+        { senderId: userId, receiverId: sellerId }
+      ]
+    },
+    order: [['createdAt', 'ASC']]
+  });
+
+  res.json(messages);
 }));
 
 // Error handling middleware

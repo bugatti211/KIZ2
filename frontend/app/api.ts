@@ -137,10 +137,17 @@ export const orderApi = {
 export const chatApi = {
   getMessagesWithSeller: async (sellerId: number) => {
     try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token');
+      }
       const res = await api.get(`/chats/${sellerId}/messages`);
       return res.data;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error getting messages with seller:', error);
+      if (error?.response?.status === 401) {
+        await AsyncStorage.removeItem('token');
+      }
       throw error;
     }
   },
@@ -152,32 +159,49 @@ export const chatApi = {
       console.error('Error sending message to seller:', error);
       throw error;
     }
-  },
-  getSellerChats: async () => {
+  },  getSellerChats: async () => {
     try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token');
+      }
       const res = await api.get('/seller-chats');
-      console.log('Seller chats response:', res.data);
       return res.data;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error getting seller chats:', error);
+      if (error?.response?.status === 401) {
+        await AsyncStorage.removeItem('token');
+      }
       throw error;
     }
-  },
-  getMessagesWithUser: async (userId: number) => {
+  },  getMessagesWithUser: async (userId: number) => {
     try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token');
+      }
       const res = await api.get(`/seller-chats/${userId}/messages`);
       return res.data;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error getting messages with user:', error);
+      if (error?.response?.status === 401) {
+        await AsyncStorage.removeItem('token');
+      }
       throw error;
     }
-  },
-  sendMessageToUser: async (userId: number, text: string) => {
+  },  sendMessageToUser: async (userId: number, text: string) => {
     try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token');
+      }
       const res = await api.post(`/seller-chats/${userId}/messages`, { text });
       return res.data;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending message to user:', error);
+      if (error?.response?.status === 401) {
+        await AsyncStorage.removeItem('token');
+      }
       throw error;
     }
   }
