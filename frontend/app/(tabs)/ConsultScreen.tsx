@@ -53,6 +53,13 @@ export default function ConsultScreen() {
   const [userId, setUserId] = useState<number | null>(null);
   const [sellerId, setSellerId] = useState<number | null>(null);
   const [isAuthChecked, setIsAuthChecked] = useState(false);
+  const [isSeller, setIsSeller] = useState(false);
+  const [chats, setChats] = useState<ChatInfo[]>([]);
+  const [activeUser, setActiveUser] = useState<number | null>(null);
+  const [sellerMessages, setSellerMessages] = useState<ChatMessage[]>([]);
+  const [sellerInput, setSellerInput] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [myId, setMyId] = useState<number | null>(null);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -63,13 +70,20 @@ export default function ConsultScreen() {
         const decoded = decodeToken(token);
 
         if (decoded) {
-          setIsAuthenticated(true);          const currentUserId = decoded.id;
+          setIsAuthenticated(true);
+          const currentUserId = decoded.id;
           setUserId(currentUserId);
-          chatHistoryService.setUserId(currentUserId.toString());
-          loadChatHistory();
-          const info = await chatApi.getSellerInfo();
-          setSellerId(info.id);
-          loadSellerChatHistory(currentUserId, info.id);
+          setMyId(currentUserId);
+          setIsSeller(decoded.role === UserRole.SELLER);
+
+          if (decoded.role === UserRole.SELLER) {
+            await loadChats();
+          } else {
+            chatHistoryService.setUserId(currentUserId.toString());
+            const info = await chatApi.getSellerInfo();
+            setSellerId(info.id);
+            loadSellerChatHistory(currentUserId, info.id);
+          }
           return;
         }
 
@@ -77,6 +91,7 @@ export default function ConsultScreen() {
       }
 
       setIsAuthenticated(false);
+      setIsSeller(false);
       setUserId(null);
       chatHistoryService.setUserId(null);
       setSellerId(null);
@@ -93,6 +108,34 @@ export default function ConsultScreen() {
 
     return () => clearInterval(interval);
   }, [userId, sellerId, activeTab]);
+
+  useEffect(() => {
+    if (!isSeller) return;
+
+    loadChats();
+    const chatListInterval = setInterval(loadChats, 10000);
+
+    return () => clearInterval(chatListInterval);
+  }, [isSeller]);
+
+  useEffect(() => {
+    if (!isSeller || activeUser === null) return;
+
+    let active = true;
+    const load = async () => {
+      if (!active) return;
+      await loadMessages(activeUser);
+    };
+
+    load();
+    const msgInterval = setInterval(load, 2000);
+
+    return () => {
+      active = false;
+      clearInterval(msgInterval);
+      setSellerMessages([]);
+    };
+  }, [activeUser, isSeller]);
 
   const loadChatHistory = async () => {
     try {
@@ -236,6 +279,60 @@ export default function ConsultScreen() {
   );
   const messageListRef = useRef<ScrollView>(null);
 
+  const loadChats = async () => {
+    if (!isSeller) return;
+
+    try {
+      const chatList = await chatApi.getSellerChats();
+      setChats(chatList);
+      setLoading(false);
+    } catch (e: any) {
+      console.error('Error loading chats', e);
+      if (e?.response?.status === 401) {
+        await AsyncStorage.removeItem('token');
+        setIsSeller(false);
+      }
+      setLoading(false);
+    }
+  };
+
+  const loadMessages = async (uid: number) => {
+    if (!isSeller) return;
+
+    try {
+      const msgs = await chatApi.getMessagesWithUser(uid);
+      setSellerMessages(msgs);
+    } catch (e: any) {
+      console.error('Error loading messages', e);
+      if (e?.response?.status === 401) {
+        await AsyncStorage.removeItem('token');
+        setIsSeller(false);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sendMessageToUser = async () => {
+    if (!sellerInput.trim() || activeUser === null) return;
+
+    const text = sellerInput.trim();
+    setSellerInput('');
+
+    try {
+      const response = await chatApi.sendMessageToUser(activeUser, text);
+      if (response) {
+        setSellerMessages(prev => [...prev, response]);
+      }
+    } catch (e: any) {
+      console.error('Error sending message', e);
+      if (e?.response?.status === 401) {
+        await AsyncStorage.removeItem('token');
+        setIsSeller(false);
+      }
+    }
+  };
+
   const renderChatContent = (
     messages: Message[], 
     inputValue: string, 
@@ -346,27 +443,119 @@ export default function ConsultScreen() {
 
   if (!isAuthChecked) return null;
 
+  if (isSeller) {
+    if (activeUser === null) {
+      return (
+        <View style={styles.container}>
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#2196F3" />
+            </View>
+          ) : chats.length > 0 ? (
+            <>
+              <Text style={styles.title}>Активные чаты</Text>
+              <FlatList
+                data={chats}
+                keyExtractor={(item) => item.userId.toString()}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.chatItem}
+                    onPress={() => {
+                      setActiveUser(item.userId);
+                      loadMessages(item.userId);
+                    }}
+                  >
+                    <Ionicons name="person-circle-outline" size={24} color="#666" />
+                    <View style={styles.chatItemContent}>
+                      <Text style={styles.chatItemName}>{item.userName}</Text>
+                      {item.lastMessage && (
+                        <Text style={styles.chatItemLastMessage} numberOfLines={1}>
+                          {item.lastMessage.text}
+                        </Text>
+                      )}
+                    </View>
+                    <Ionicons name="chevron-forward" size={24} color="#666" />
+                  </TouchableOpacity>
+                )}
+              />
+            </>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="chatbubbles-outline" size={64} color="#ccc" />
+              <Text style={styles.emptyText}>Нет активных чатов</Text>
+            </View>
+          )}
+        </View>
+      );
+    }
+
+    return (
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      >
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => setActiveUser(null)}>
+            <Ionicons name="arrow-back" size={24} color="#2196F3" />
+            <Text style={styles.backButtonText}>Назад</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Пользователь {activeUser}</Text>
+        </View>
+
+        <FlatList
+          data={sellerMessages}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={({ item }) => (
+            <View style={myId === item.senderId ? styles.messageSeller : styles.messageUser}>
+              <Text style={styles.messageText}>{item.text}</Text>
+              <Text style={styles.messageTime}>{new Date(item.createdAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</Text>
+            </View>
+          )}
+          contentContainerStyle={styles.messagesContainer}
+        />
+
+        <View style={styles.inputRow}>
+          <TextInput
+            style={styles.input}
+            value={sellerInput}
+            onChangeText={setSellerInput}
+            placeholder="Введите сообщение..."
+            multiline
+            maxLength={1000}
+          />
+          <TouchableOpacity
+            style={[styles.sendButton, !sellerInput.trim() && styles.sendButtonDisabled]}
+            onPress={sendMessageToUser}
+            disabled={!sellerInput.trim()}
+          >
+            <Ionicons name="send" size={20} color={sellerInput.trim() ? '#fff' : '#999'} />
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    );
+  }
+
   return (
     <View style={styles.container}>
       {renderTabs()}
-      {activeTab === 'seller' ? 
-        renderChatContent(
-          sellerChatMessages, 
-          inputSellerMessage, 
-          setInputSellerMessage, 
-          sendSellerMessage,
-          isSellerTyping,
-          'Продавец печатает...'
-        ) : 
-        renderChatContent(
-          chatMessages, 
-          inputMessage, 
-          setInputMessage, 
-          sendMessage,
-          isTyping,
-          'AI помощник печатает...'
-        )
-      }
+      {activeTab === 'seller'
+        ? renderChatContent(
+            sellerChatMessages,
+            inputSellerMessage,
+            setInputSellerMessage,
+            sendSellerMessage,
+            isSellerTyping,
+            'Продавец печатает...'
+          )
+        : renderChatContent(
+            chatMessages,
+            inputMessage,
+            setInputMessage,
+            sendMessage,
+            isTyping,
+            'AI помощник печатает...'
+          )}
 
       <Modal visible={showAuth} animationType="fade" transparent>
         <View style={styles.modalOverlay}>
@@ -607,5 +796,113 @@ const styles = StyleSheet.create({
   closeButtonText: {
     fontSize: 20,
     color: '#666',
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#333',
+    padding: 16,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  backButtonText: {
+    color: '#2196F3',
+    fontSize: 16,
+    marginLeft: 4,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '500',
+    color: '#333',
+    marginLeft: 16,
+  },
+  chatItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    marginVertical: 4,
+    marginHorizontal: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  chatItemContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  chatItemName: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '500',
+  },
+  chatItemLastMessage: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#666',
+    marginTop: 16,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    padding: 8,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
+  messageUser: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#fff',
+    padding: 12,
+    marginVertical: 4,
+    marginHorizontal: 16,
+    borderRadius: 16,
+    maxWidth: '80%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  messageSeller: {
+    alignSelf: 'flex-end',
+    backgroundColor: '#e3f2fd',
+    padding: 12,
+    marginVertical: 4,
+    marginHorizontal: 16,
+    borderRadius: 16,
+    maxWidth: '80%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
