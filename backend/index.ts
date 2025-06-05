@@ -9,7 +9,6 @@ import Contact from './contact.model';
 import { Order, OrderItem } from './order.model';
 import { Supply, SupplyItem } from './supply.model';
 import Sale, { SaleItem } from './sale.model';
-import ChatMessage from './chatMessage.model';
 import { asyncHandler } from './asyncHandler';
 import { authMiddleware } from './authMiddleware';
 import type { Request, Response } from 'express';
@@ -105,8 +104,6 @@ Supply.sync();
 // Синхронизация модели SupplyItem с БД
 SupplyItem.sync();
 
-// Синхронизация модели ChatMessage с БД
-ChatMessage.sync();
 
 // CRUD роуты для User
 app.post('/users', asyncHandler(async (req: Request, res: Response) => {
@@ -217,14 +214,6 @@ app.post('/login', asyncHandler(async (req: Request, res: Response) => {
   res.json({ token, user: tokenPayload });
 }));
 
-// Получить информацию о продавце (первый пользователь с ролью "seller")
-app.get('/seller', asyncHandler(async (req: Request, res: Response) => {
-  const seller = await User.findOne({ where: { role: UserRole.SELLER } });
-  if (!seller) {
-    return res.status(404).json({ error: 'Seller not found' });
-  }
-  res.json({ id: seller.id, name: seller.name, email: seller.email });
-}));
 
 // CRUD для объявлений
 app.post('/ads', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
@@ -1031,145 +1020,6 @@ app.post('/sales', asyncHandler(async (req: Request, res: Response) => {
   }
 }));
 
-// -------- Chat Endpoints --------
-app.post('/chats/:sellerId/messages', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
-  const { sellerId } = req.params;
-  const { text } = req.body;
-  // @ts-ignore
-  const userId = req.user.id;
-
-  if (!text) {
-    return res.status(400).json({ error: 'Text is required' });
-  }
-
-  const message = await ChatMessage.create({
-    senderId: userId,
-    receiverId: Number(sellerId),
-    text
-  });
-
-  res.status(201).json(message);
-}));
-
-app.get('/chats/:sellerId/messages', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
-  const { sellerId } = req.params;
-  // @ts-ignore
-  const userId = req.user.id;
-
-  const messages = await ChatMessage.findAll({
-    where: {
-      [Op.or]: [
-        { senderId: userId, receiverId: sellerId },
-        { senderId: sellerId, receiverId: userId }
-      ]
-    },
-    order: [['createdAt', 'ASC']]
-  });
-
-  res.json(messages);
-}));
-
-app.get('/seller-chats', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
-  // @ts-ignore
-  const sellerId = req.user.id;
-  // @ts-ignore
-  const role = (req.user.role || '').trim();
-
-  if (role !== UserRole.SELLER) {
-    return res.status(403).json({ error: 'Forbidden' });
-  }
-
-  try {
-    // Get all messages for the seller with user information
-    const messages = await ChatMessage.findAll({
-      where: {
-        [Op.or]: [{ senderId: sellerId }, { receiverId: sellerId }]
-      },
-      include: [
-        { model: User, as: 'sender', attributes: ['id', 'name', 'email', 'role'] },
-        { model: User, as: 'receiver', attributes: ['id', 'name', 'email', 'role'] }
-      ],
-      order: [['createdAt', 'DESC']]
-    });
-
-    // Group messages by user and get the last message for each
-    const chatsByUser = new Map();
-    messages.forEach((message: any) => {
-      const otherUserId = message.senderId === sellerId ? message.receiverId : message.senderId;
-      const otherUser = message.senderId === sellerId ? message.receiver : message.sender;
-      
-      if (!chatsByUser.has(otherUserId)) {
-        chatsByUser.set(otherUserId, {
-          userId: otherUserId,
-          userName: otherUser?.name || `Пользователь ${otherUserId}`,
-          userEmail: otherUser?.email,
-          lastMessage: {
-            id: message.id,
-            senderId: message.senderId,
-            receiverId: message.receiverId,
-            text: message.text,
-            createdAt: message.createdAt
-          },
-          unreadCount: 0 // TODO: Implement unread count
-        });
-      }
-    });
-
-    res.json(Array.from(chatsByUser.values()));
-  } catch (error) {
-    console.error('Error in /seller-chats:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-}));
-
-app.get('/seller-chats/:userId', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
-  const { userId } = req.params;
-  // @ts-ignore
-  const sellerId = req.user.id;
-  // @ts-ignore
-  const role = (req.user.role || '').trim();
-
-  if (role !== UserRole.SELLER) {
-    return res.status(403).json({ error: 'Forbidden' });
-  }
-
-  const messages = await ChatMessage.findAll({
-    where: {
-      [Op.or]: [
-        { senderId: sellerId, receiverId: userId },
-        { senderId: userId, receiverId: sellerId }
-      ]
-    },
-    order: [['createdAt', 'ASC']]
-  });
-
-  res.json(messages);
-}));
-
-app.post('/seller-chats/:userId', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
-  const { userId } = req.params;
-  const { text } = req.body;
-  // @ts-ignore
-  const sellerId = req.user.id;
-  // @ts-ignore
-  const role = (req.user.role || '').trim();
-
-  if (role !== UserRole.SELLER) {
-    return res.status(403).json({ error: 'Forbidden' });
-  }
-
-  if (!text) {
-    return res.status(400).json({ error: 'Text is required' });
-  }
-
-  const message = await ChatMessage.create({
-    senderId: sellerId,
-    receiverId: Number(userId),
-    text
-  });
-
-  res.status(201).json(message);
-}));
 
 // Error handling middleware
 app.use((err: any, req: Request, res: Response, next: any) => {

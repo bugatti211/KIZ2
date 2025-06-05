@@ -4,107 +4,31 @@ import {
   Text, 
   TouchableOpacity, 
   StyleSheet, 
+  Linking, 
+  Alert, 
   TextInput, 
   ScrollView, 
   ActivityIndicator,
   KeyboardAvoidingView,
-  Platform,
-  Modal,
-  Pressable,
-  Alert
+  Platform
 } from 'react-native';
-import { FontAwesome5, Ionicons } from '@expo/vector-icons';
-import { chatHistoryService } from '../../services/chatHistoryService';
-import { chatApi } from '../api';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { decodeToken } from '../utils/tokenUtils';
-import { useRouter } from 'expo-router';
-import { useIsFocused } from '@react-navigation/native';
-
-interface Message {
-  id?: number;
-  senderId?: number;
-  receiverId?: number;
-  role: 'user' | 'seller' | 'assistant';
-  text: string;
-  timestamp: number;
-  createdAt?: string;
-}
-
-interface ApiMessage {
-  id: number;
-  senderId: number;
-  receiverId: number;
-  text: string;
-  createdAt: string;
-}
+import { FontAwesome5 } from '@expo/vector-icons';
+import { getContacts } from '../authApi';
+import { yandexGptService } from '../../services/yandexGptService';
+import { chatHistoryService, ChatMessage } from '../../services/chatHistoryService';
 
 export default function ConsultScreen() {
-  const router = useRouter();
-  const isFocused = useIsFocused();
-  const [activeTab, setActiveTab] = useState<'ai' | 'seller'>('seller');
-  const [inputMessage, setInputMessage] = useState('');
-  const [chatMessages, setChatMessages] = useState<Message[]>([]);
-  const [inputSellerMessage, setInputSellerMessage] = useState('');
-  const [sellerChatMessages, setSellerChatMessages] = useState<Message[]>([]);
+  const [activeTab, setActiveTab] = useState('employee');
+  const [contacts, setContacts] = useState({ telegram: '', whatsapp: '' });
+  const [loading, setLoading] = useState(true);
+  const [inputMessage, setInputMessage] = useState('');  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
-  const [isSellerTyping, setIsSellerTyping] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [showAuth, setShowAuth] = useState(false);
-  const [userId, setUserId] = useState<number | null>(null);
-  const [sellerId, setSellerId] = useState<number | null>(null);
-  const [isAuthChecked, setIsAuthChecked] = useState(false);
-
-  const fetchSellerInfo = async () => {
-    try {
-      const info = await chatApi.getSellerInfo();
-      setSellerId(info.id);
-    } catch (error) {
-      console.error('Error fetching seller info:', error);
-    }
-  };
 
   useEffect(() => {
-    if (!isFocused) return;
-
-    const checkAuth = async () => {
-      const token = await AsyncStorage.getItem('token');
-      setIsAuthenticated(!!token);
-      setIsAuthChecked(true);
-      if (token) {
-        const tokenData = decodeToken(token);        if (tokenData) {
-          const currentUserId = tokenData.id;
-          setUserId(currentUserId);
-          chatHistoryService.setUserId(currentUserId.toString());
-          loadChatHistory();
-          loadSellerChatHistory(currentUserId, sellerId);
-        } else {
-          await AsyncStorage.removeItem('token');
-          setUserId(null);
-          chatHistoryService.setUserId(null);
-          loadSellerChatHistory(null, sellerId);
-        }
-      } else {
-        setUserId(null);
-        chatHistoryService.setUserId(null);
-        loadSellerChatHistory(null, sellerId);
-      }
-    };
-    checkAuth();
-    fetchSellerInfo();
-  }, [isFocused]);
-
-  useEffect(() => {
-    if (!isFocused || !userId || !sellerId || activeTab !== 'seller') return;
-
-    const interval = setInterval(() => {
-      loadSellerChatHistory(userId, sellerId);
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, [isFocused, userId, sellerId, activeTab]);
-
+    loadContacts();
+    loadChatHistory();
+  }, []);
   const loadChatHistory = async () => {
     try {
       const history = await chatHistoryService.loadRecentMessages();
@@ -113,297 +37,206 @@ export default function ConsultScreen() {
       console.error('Error loading chat history:', error);
     }
   };
-  const loadSellerChatHistory = async (
-    currentUserId: number | null,
-    currentSellerId: number | null
-  ) => {
+
+  const loadContacts = async () => {
     try {
-      if (!currentUserId || !currentSellerId) {
-        setSellerChatMessages([]);
-        return;
-      }
-      const history: ApiMessage[] = await chatApi.getMessagesWithSeller(currentSellerId);
-      const formattedMessages: Message[] = history.map((msg: ApiMessage) => ({
-        id: msg.id,
-        senderId: msg.senderId,
-        receiverId: msg.receiverId,
-        role: msg.senderId === currentUserId ? 'user' as const : 'seller' as const,
-        text: msg.text,
-        timestamp: new Date(msg.createdAt || Date.now()).getTime()
-      }));
-      setSellerChatMessages(formattedMessages);
+      const contactsData = await getContacts();
+      setContacts(contactsData);
     } catch (error) {
-      console.error('Error loading seller chat history:', error);
-      const status = (error as any)?.response?.status;
-      if (status === 401) {
-        await AsyncStorage.removeItem('token');
-        setIsAuthenticated(false);
-        setUserId(null);
-        chatHistoryService.setUserId(null);
-        setSellerChatMessages([]);
-      }
+      Alert.alert('Ошибка', 'Не удалось загрузить контактные данные');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openTelegram = () => {
+    if (contacts.telegram) {
+      Linking.openURL(`https://t.me/${contacts.telegram}`);
+    }
+  };
+
+  const openWhatsApp = () => {
+    if (contacts.whatsapp) {
+      Linking.openURL(`https://wa.me/${contacts.whatsapp}`);
     }
   };
   const sendMessage = async () => {
     if (!inputMessage.trim()) return;
 
-    const message: Message = { 
+    const userMessage: Omit<ChatMessage, 'timestamp'> = { 
       role: 'user', 
-      text: inputMessage.trim(),
-      timestamp: Date.now()
+      text: inputMessage.trim() 
     };
 
-    setChatMessages(prev => [...prev, message]);
-    setInputMessage('');
-    setIsTyping(true);
-
     try {
-      // TODO: Implement AI chat endpoint
-      const mockResponse = "This is a mock AI response. The AI chat endpoint is not implemented yet.";
-      const aiMessage: Message = { 
+      await chatHistoryService.saveMessage(userMessage);
+      setChatMessages(prev => [...prev, { ...userMessage, timestamp: Date.now() }]);
+      setInputMessage('');
+      setIsTyping(true);
+
+      const response = await yandexGptService.sendMessage(userMessage.text);
+      const assistantMessage: Omit<ChatMessage, 'timestamp'> = { 
         role: 'assistant', 
-        text: mockResponse,
-        timestamp: Date.now()
+        text: response 
       };
-      setTimeout(() => {
-        setChatMessages(prev => [...prev, aiMessage]);
-        setIsTyping(false);
-      }, 1000);
+      
+      await chatHistoryService.saveMessage(assistantMessage);
+      setChatMessages(prev => [...prev, { ...assistantMessage, timestamp: Date.now() }]);
     } catch (error) {
-      console.error('Error sending message:', error);
+      Alert.alert('Ошибка', 'Не удалось получить ответ от ассистента');
+    } finally {
       setIsTyping(false);
     }
   };
+  const formatMessageTime = (timestamp: number) => {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  };
 
-  const sendSellerMessage = async () => {
-    if (!inputSellerMessage.trim() || !userId || !sellerId) return;
-
-    const text = inputSellerMessage.trim();
-    setInputSellerMessage('');
-    setIsSellerTyping(true);
-
+  const clearHistory = async () => {
     try {
-      const response = await chatApi.sendMessageToSeller(sellerId, text);
-      if (response) {
-        const newMessage = {
-          id: response.id,
-          senderId: userId,
-          receiverId: sellerId,
-          role: 'user' as const,
-          text,
-          timestamp: new Date(response.createdAt).getTime()
-        };
-        setSellerChatMessages(prev => [...prev, newMessage]);
-      }
+      await chatHistoryService.clearHistory();
+      setChatMessages([]);
+      Alert.alert('Успех', 'История чата очищена');
     } catch (error) {
-      console.error('Error sending message:', error);
-      Alert.alert('Ошибка', 'Не удалось отправить сообщение. Попробуйте еще раз.');
-    } finally {
-      setIsSellerTyping(false);
+      Alert.alert('Ошибка', 'Не удалось очистить историю чата');
     }
   };
 
-  const formatMessageTime = (timestamp: number) => {
-    return new Date(timestamp).toLocaleTimeString('ru-RU', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const renderMessage = (message: Message, index: number) => (
+  const renderMessage = (message: ChatMessage, index: number) => (
     <View 
       key={index} 
       style={[
         styles.messageContainer,
-        message.role === 'user' ? styles.userMessage : 
-        message.role === 'seller' ? styles.sellerMessage :
-        styles.assistantMessage
+        message.role === 'user' ? styles.userMessage : styles.assistantMessage
       ]}
     >
-      <Text style={[
-        styles.messageText,
-        message.role === 'user' && styles.userMessageText
-      ]}>
-        {message.text}
-      </Text>
+      <Text style={styles.messageText}>{message.text}</Text>
       <Text style={[
         styles.messageTime,
-        message.role === 'user' ? styles.userMessageTime : 
-        message.role === 'seller' ? styles.sellerMessageTime :
-        styles.assistantMessageTime
+        message.role === 'user' ? styles.userMessageTime : styles.assistantMessageTime
       ]}>
         {formatMessageTime(message.timestamp)}
       </Text>
     </View>
   );
-  const messageListRef = useRef<ScrollView>(null);
 
-  const renderChatContent = (
-    messages: Message[], 
-    inputValue: string, 
-    setInputValue: (value: string) => void,
-    onSend: () => void,
-    isTypingState: boolean,
-    typingText: string
-  ) => {
-    if (!isAuthenticated) {
-      return (
-        <View style={styles.authContainer}>
-          <Text style={styles.authText}>
-            Для использования чата необходимо авторизоваться
-          </Text>
-          <TouchableOpacity 
-            style={styles.authButton}
-            onPress={() => setShowAuth(true)}
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'employee':
+        return (
+          <View style={styles.contentContainer}>
+            <Text style={styles.contentText}>Связаться с сотрудником</Text>
+            {loading ? (
+              <Text>Загрузка контактов...</Text>
+            ) : (
+              <View style={styles.contactButtons}>                <TouchableOpacity
+                  style={[styles.contactButton, { backgroundColor: '#0088cc' }]}
+                  onPress={openTelegram}
+                >
+                  <FontAwesome5 name="telegram" size={24} color="white" />
+                  <Text style={styles.buttonText}>Telegram</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.contactButton, { backgroundColor: '#25D366' }]}
+                  onPress={openWhatsApp}
+                >
+                  <FontAwesome5 name="whatsapp" size={24} color="white" />
+                  <Text style={styles.buttonText}>WhatsApp</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        );      case 'ai':
+        return (
+          <KeyboardAvoidingView 
+            style={styles.chatContainer}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
           >
-            <Text style={styles.authButtonText}>Войти</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
-
-    return (
-      <KeyboardAvoidingView
-        style={styles.chatContainer}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-      >
-        <ScrollView          ref={messageListRef}
-          style={styles.messagesContainer}
-          onContentSizeChange={() => messageListRef.current?.scrollToEnd({ animated: true })}
-        >
-          {messages.length === 0 ? (
-            <Text style={styles.emptyChatText}>
-              Начните диалог
-            </Text>
-          ) : (
-            <>
-              {messages.map(renderMessage)}
-              {isTypingState && (
+            {renderHeader()}
+            <ScrollView
+              ref={scrollViewRef}
+              style={styles.messagesContainer}
+              onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+            >
+              {chatMessages.map(renderMessage)}
+              {isTyping && (
                 <View style={styles.typingIndicator}>
                   <ActivityIndicator size="small" color="#0066cc" />
-                  <Text style={styles.typingText}>{typingText}</Text>
+                  <Text style={styles.typingText}>Ассистент печатает...</Text>
                 </View>
               )}
-            </>
-          )}
-        </ScrollView>
-
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            value={inputValue}
-            onChangeText={setInputValue}
-            placeholder="Введите сообщение..."
-            multiline
-          />
-          <TouchableOpacity
-            style={[styles.sendButton, !inputValue.trim() && styles.sendButtonDisabled]}
-            onPress={onSend}
-            disabled={!inputValue.trim() || isTypingState}
-          >
-            <Ionicons 
-              name="send" 
-              size={20} 
-              color={inputValue.trim() ? '#fff' : '#ccc'} 
-            />
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-    );
+            </ScrollView>
+            <View style={styles.inputContainer}>              <TextInput
+                style={styles.input}
+                value={inputMessage}
+                onChangeText={setInputMessage}
+                placeholder="Введите сообщение..."
+                multiline
+              />
+              <TouchableOpacity
+                style={[styles.sendButton, !inputMessage.trim() && styles.sendButtonDisabled]}
+                onPress={sendMessage}
+                disabled={!inputMessage.trim() || isTyping}
+              >
+                <FontAwesome5 
+                  name="arrow-up" 
+                  size={16} 
+                  color={inputMessage.trim() ? 'white' : '#ccc'} 
+                />
+              </TouchableOpacity>
+            </View>
+          </KeyboardAvoidingView>
+        );
+      default:
+        return null;
+    }
   };
+  const renderHeader = () => (
+    <View style={styles.chatHeader}>
+      <Text style={styles.chatTitle}>Чат с AI помощником</Text>
+      {chatMessages.length > 0 && (
+        <TouchableOpacity onPress={clearHistory} style={styles.clearButton}>
+          <FontAwesome5 name="trash" size={20} color="#666" />
+        </TouchableOpacity>
+      )}
+    </View>
+  );
 
   const renderTabs = () => (
     <View style={styles.tabContainer}>
       <TouchableOpacity
-        style={[styles.tab, activeTab === 'seller' && styles.activeTab]}
-        onPress={() => setActiveTab('seller')}
+        style={[
+          styles.tab,
+          activeTab === 'employee' && styles.activeTab
+        ]}
+        onPress={() => setActiveTab('employee')}
       >
-        <Ionicons 
-          name="people" 
-          size={20} 
-          color={activeTab === 'seller' ? '#fff' : '#666'} 
-          style={styles.tabIcon}
-        />
-        <Text style={[styles.tabText, activeTab === 'seller' && styles.activeTabText]}>
-          Чат с продавцом
-        </Text>
+        <Text style={[
+          styles.tabText,
+          activeTab === 'employee' && styles.activeTabText
+        ]}>Сотрудник</Text>
       </TouchableOpacity>
       <TouchableOpacity
-        style={[styles.tab, activeTab === 'ai' && styles.activeTab]}
+        style={[
+          styles.tab,
+          activeTab === 'ai' && styles.activeTab
+        ]}
         onPress={() => setActiveTab('ai')}
       >
-        <Ionicons 
-          name="help-circle" 
-          size={20} 
-          color={activeTab === 'ai' ? '#fff' : '#666'} 
-          style={styles.tabIcon}
-        />
-        <Text style={[styles.tabText, activeTab === 'ai' && styles.activeTabText]}>
-          AI Помощник
-        </Text>
+        <Text style={[
+          styles.tabText,
+          activeTab === 'ai' && styles.activeTabText
+        ]}>AI помощник</Text>
       </TouchableOpacity>
     </View>
   );
 
-  if (!isAuthChecked) return null;
-
   return (
     <View style={styles.container}>
       {renderTabs()}
-      {activeTab === 'seller' ? 
-        renderChatContent(
-          sellerChatMessages, 
-          inputSellerMessage, 
-          setInputSellerMessage, 
-          sendSellerMessage,
-          isSellerTyping,
-          'Продавец печатает...'
-        ) : 
-        renderChatContent(
-          chatMessages, 
-          inputMessage, 
-          setInputMessage, 
-          sendMessage,
-          isTyping,
-          'AI помощник печатает...'
-        )
-      }
-
-      <Modal visible={showAuth} animationType="fade" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Вход в аккаунт</Text>
-              <Pressable onPress={() => setShowAuth(false)} style={styles.closeButton}>
-                <Text style={styles.closeButtonText}>×</Text>
-              </Pressable>
-            </View>
-            <Text style={styles.modalText}>
-              Для использования чата необходимо войти в аккаунт
-            </Text>
-            <TouchableOpacity 
-              onPress={() => {
-                setShowAuth(false);
-                router.push("/(auth)/login");
-              }}
-              style={styles.authButton}
-            >
-              <Text style={styles.authButtonText}>Войти</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              onPress={() => {
-                setShowAuth(false);
-                router.push("/(auth)/register");
-              }}
-              style={[styles.authButton, styles.registerButton]}
-            >
-              <Text style={styles.authButtonText}>Зарегистрироваться</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      {renderContent()}
     </View>
   );
 }
@@ -412,18 +245,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-  },
-  authContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 32,
-  },
-  authText: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 24,
   },
   tabContainer: {
     flexDirection: 'row',
@@ -434,19 +255,14 @@ const styles = StyleSheet.create({
   },
   tab: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
     paddingVertical: 12,
-    marginHorizontal: 4,
+    alignItems: 'center',
     borderRadius: 8,
+    marginHorizontal: 4,
     backgroundColor: '#f5f5f5',
   },
   activeTab: {
     backgroundColor: '#2196F3',
-  },
-  tabIcon: {
-    marginRight: 8,
   },
   tabText: {
     fontSize: 16,
@@ -455,9 +271,56 @@ const styles = StyleSheet.create({
   activeTabText: {
     color: '#fff',
   },
+  contentContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  contentText: {
+    fontSize: 18,
+    marginBottom: 20,
+  },
+  contactButtons: {
+    width: '100%',
+    gap: 16,
+  },
+  contactButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 15,
+    borderRadius: 8,
+    gap: 10,
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 16,
+    marginLeft: 8,
+  },
   chatContainer: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  chatHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  chatTitle: {
+    fontSize: 18,
+    fontWeight: '500',
+  },
+  clearButton: {
+    padding: 8,
+  },
+  clearButtonText: {
+    color: '#ff3b30',
+    fontSize: 14,
   },
   messagesContainer: {
     flex: 1,
@@ -468,35 +331,18 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 12,
     marginBottom: 8,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
   },
   userMessage: {
     alignSelf: 'flex-end',
     backgroundColor: '#007AFF',
   },
-  sellerMessage: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#e8f5e9',
-    borderWidth: 1,
-    borderColor: '#c8e6c9',
-  },
   assistantMessage: {
     alignSelf: 'flex-start',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
+    backgroundColor: '#E9E9EB',
   },
   messageText: {
     fontSize: 16,
     lineHeight: 22,
-    color: '#000',
-  },
-  userMessageText: {
-    color: '#FFFFFF',
   },
   messageTime: {
     fontSize: 12,
@@ -506,19 +352,9 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.7)',
     textAlign: 'right',
   },
-  sellerMessageTime: {
-    color: '#8E8E93',
-    textAlign: 'left',
-  },
   assistantMessageTime: {
     color: '#8E8E93',
     textAlign: 'left',
-  },
-  emptyChatText: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    marginTop: 16,
   },
   typingIndicator: {
     flexDirection: 'row',
@@ -557,57 +393,5 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     backgroundColor: '#E9E9EB',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
-    width: '92%',
-    maxWidth: 400,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  modalText: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 20,
-    lineHeight: 22,
-  },
-  authButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
-    padding: 12,
-    alignItems: 'center',
-    marginVertical: 8,
-  },
-  registerButton: {
-    backgroundColor: '#4CAF50',
-  },
-  authButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  closeButton: {
-    padding: 8,
-  },
-  closeButtonText: {
-    fontSize: 20,
-    color: '#666',
   },
 });
