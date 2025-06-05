@@ -37,6 +37,10 @@ export default function SellerChatsScreen() {
     try {
       const token = await AsyncStorage.getItem('token');
       if (!token) {
+        setIsSeller(false);
+        setChats([]);
+        setMessages([]);
+        setActiveUser(null);
         router.replace('/(tabs)/ConsultScreen');
         return;
       }
@@ -49,6 +53,7 @@ export default function SellerChatsScreen() {
           setIsSeller(true);
           await loadChats(); // Immediately load chats when we confirm seller role
         } else {
+          setIsSeller(false);
           Alert.alert(
             'Переадресация',
             'Для общения с продавцом перейдите в раздел "Консультация"',
@@ -60,24 +65,40 @@ export default function SellerChatsScreen() {
         }
       } else {
         await AsyncStorage.removeItem('token');
+        setIsSeller(false);
+        setChats([]);
+        setMessages([]);
+        setActiveUser(null);
         router.replace('/(tabs)/ConsultScreen');
       }
     } catch (e) {
       console.error('Error loading user data:', e);
+      setIsSeller(false);
+      setChats([]);
+      setMessages([]);
+      setActiveUser(null);
       router.replace('/(tabs)/ConsultScreen');
     }
   };
 
   const loadChats = async () => {
     if (!isSeller) return;
-    
+
     try {
       const chatList = await chatApi.getSellerChats();
       setChats(chatList);
       setLoading(false);
     } catch (e) {
       console.error('Error loading chats', e);
-      if ((e as any)?.response?.status === 403) {
+      const status = (e as any)?.response?.status;
+      if (status === 401) {
+        await AsyncStorage.removeItem('token');
+        setIsSeller(false);
+        setChats([]);
+        setMessages([]);
+        setActiveUser(null);
+        router.replace('/(tabs)/ConsultScreen');
+      } else if (status === 403) {
         Alert.alert(
           'Ошибка доступа',
           'У вас нет прав для просмотра чатов',
@@ -90,13 +111,20 @@ export default function SellerChatsScreen() {
   
   const loadMessages = async (userId: number) => {
     if (!isSeller) return;
-    
+
     try {
       const msgs = await chatApi.getMessagesWithUser(userId);
       setMessages(msgs);
     } catch (e) {
       console.error('Error loading messages', e);
-      if ((e as any)?.response?.status === 403) {
+      const status = (e as any)?.response?.status;
+      if (status === 401) {
+        await AsyncStorage.removeItem('token');
+        setIsSeller(false);
+        setActiveUser(null);
+        setMessages([]);
+        router.replace('/(tabs)/ConsultScreen');
+      } else if (status === 403) {
         Alert.alert(
           'Ошибка доступа',
           'У вас нет прав для просмотра сообщений',
