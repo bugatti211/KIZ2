@@ -1073,7 +1073,7 @@ app.get('/seller-chats', authMiddleware as any, asyncHandler(async (req: Request
   // @ts-ignore
   const sellerId = req.user.id;
   // @ts-ignore
-  const role = req.user.role;
+  const role = (req.user.role || '').trim();
 
   if (role !== UserRole.SELLER) {
     return res.status(403).json({ error: 'Forbidden' });
@@ -1127,7 +1127,7 @@ app.get('/seller-chats/:userId', authMiddleware as any, asyncHandler(async (req:
   // @ts-ignore
   const sellerId = req.user.id;
   // @ts-ignore
-  const role = req.user.role;
+  const role = (req.user.role || '').trim();
 
   if (role !== UserRole.SELLER) {
     return res.status(403).json({ error: 'Forbidden' });
@@ -1152,7 +1152,7 @@ app.post('/seller-chats/:userId', authMiddleware as any, asyncHandler(async (req
   // @ts-ignore
   const sellerId = req.user.id;
   // @ts-ignore
-  const role = req.user.role;
+  const role = (req.user.role || '').trim();
 
   if (role !== UserRole.SELLER) {
     return res.status(403).json({ error: 'Forbidden' });
