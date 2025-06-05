@@ -499,6 +499,20 @@ app.get('/api/contacts', asyncHandler(async (req: Request, res: Response) => {
   res.json(contacts);
 }));
 
+// Endpoint to get seller account information
+app.get('/seller', asyncHandler(async (req: Request, res: Response) => {
+  try {
+    const seller = await User.findOne({ where: { role: UserRole.SELLER } });
+    if (!seller) {
+      return res.status(404).json({ error: 'Seller not found' });
+    }
+    res.json({ id: seller.id, name: seller.name, email: seller.email });
+  } catch (error) {
+    console.error('Error fetching seller info:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}));
+
 // Cart Endpoints
 app.get('/cart', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
   // @ts-ignore

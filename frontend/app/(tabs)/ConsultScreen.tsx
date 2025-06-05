@@ -16,7 +16,6 @@ import {
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { chatHistoryService } from '../../services/chatHistoryService';
 import { chatApi } from '../api';
-import { SELLER_ID } from '../config/env';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 
@@ -51,6 +50,7 @@ export default function ConsultScreen() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [userId, setUserId] = useState<number | null>(null);
+  const [sellerId, setSellerId] = useState<number | null>(null);
   const [isAuthChecked, setIsAuthChecked] = useState(false);
 
   useEffect(() => {
@@ -64,24 +64,27 @@ export default function ConsultScreen() {
         setUserId(currentUserId);
         chatHistoryService.setUserId(currentUserId);
         loadChatHistory();
-        loadSellerChatHistory(currentUserId);
+        const info = await chatApi.getSellerInfo();
+        setSellerId(info.id);
+        loadSellerChatHistory(currentUserId, info.id);
       } else {
         setUserId(null);
         chatHistoryService.setUserId(null);
-        loadSellerChatHistory(null);
+        setSellerId(null);
+        loadSellerChatHistory(null, null);
       }
     };
     checkAuth();
   }, []);
   useEffect(() => {
-    if (!userId || activeTab !== 'seller') return;
+    if (!userId || activeTab !== 'seller' || sellerId === null) return;
 
     const interval = setInterval(() => {
-      loadSellerChatHistory(userId);
+      loadSellerChatHistory(userId, sellerId);
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [userId, activeTab]);
+  }, [userId, sellerId, activeTab]);
 
   const loadChatHistory = async () => {
     try {
@@ -91,13 +94,18 @@ export default function ConsultScreen() {
       console.error('Error loading chat history:', error);
     }
   };
-  const loadSellerChatHistory = async (currentUserId: number | null) => {
+  const loadSellerChatHistory = async (
+    currentUserId: number | null,
+    currentSellerId: number | null
+  ) => {
     try {
-      if (!currentUserId) {
+      if (!currentUserId || !currentSellerId) {
         setSellerChatMessages([]);
         return;
       }
-      const history: ApiMessage[] = await chatApi.getMessagesWithSeller(SELLER_ID);
+      const history: ApiMessage[] = await chatApi.getMessagesWithSeller(
+        currentSellerId
+      );
       const formattedMessages: Message[] = history.map((msg: ApiMessage) => ({
         id: msg.id,
         senderId: msg.senderId,
@@ -143,19 +151,19 @@ export default function ConsultScreen() {
   };
 
   const sendSellerMessage = async () => {
-    if (!inputSellerMessage.trim() || !userId) return;
+    if (!inputSellerMessage.trim() || !userId || sellerId === null) return;
 
     const text = inputSellerMessage.trim();
     setInputSellerMessage('');
     setIsSellerTyping(true);
 
     try {
-      const response = await chatApi.sendMessageToSeller(SELLER_ID, text);
+      const response = await chatApi.sendMessageToSeller(sellerId, text);
       if (response) {
         const newMessage = {
           id: response.id,
           senderId: userId,
-          receiverId: SELLER_ID,
+          receiverId: sellerId,
           role: 'user' as const,
           text,
           timestamp: new Date(response.createdAt).getTime()

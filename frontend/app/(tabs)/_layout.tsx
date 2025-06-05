@@ -21,6 +21,7 @@ import OfflineSalesScreen from './OfflineSalesScreen';
 import SalesHistoryScreen from './SalesHistoryScreen';
 import OrderDetailsScreen from './OrderDetailsScreen';
 import SaleDetailsScreen from './SaleDetailsScreen';
+import SellerChatsScreen from './SellerChatsScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -288,6 +289,16 @@ export default function TabLayout() {
             tabBarIcon: ({ color, size }) => <Ionicons name="cart" size={size} color={color} />,
           }}        />
       )}
+      {isSeller && (
+        <Tab.Screen
+          name="sellerChats"
+          component={SellerChatsScreen}
+          options={{
+            title: 'Чаты',
+            tabBarIcon: ({ color, size }) => <Ionicons name="chatbubbles" size={size} color={color} />,
+          }}
+        />
+      )}
       {(isAdmin || isSeller || isLoader) && (
         <Tab.Screen
           name="orders"
@@ -319,6 +330,7 @@ function getTabTitle(name: string) {
     case 'Profile': return 'Профиль';
     case 'Ads': return 'Объявления';
     case 'Orders': return 'Заказы';
+    case 'sellerChats': return 'Чаты';
     default: return '';
   }
 }
