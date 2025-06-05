@@ -5,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { UserRole } from '../../constants/Roles';
 import { useRouter } from 'expo-router';
+import { decodeToken } from '../utils/tokenUtils';
 
 interface ChatMessage {
   id: number;
@@ -40,21 +41,26 @@ export default function SellerChatsScreen() {
         return;
       }
 
-      const data = JSON.parse(atob(token.split('.')[1]));
-      setMyId(data.id);
-      
-      if (data.role === UserRole.SELLER) {
-        setIsSeller(true);
-        await loadChats(); // Immediately load chats when we confirm seller role
+      const data = decodeToken(token);
+      if (data) {
+        setMyId(data.id);
+
+        if (data.role === UserRole.SELLER) {
+          setIsSeller(true);
+          await loadChats(); // Immediately load chats when we confirm seller role
+        } else {
+          Alert.alert(
+            'Переадресация',
+            'Для общения с продавцом перейдите в раздел "Консультация"',
+            [{
+              text: 'Перейти',
+              onPress: () => router.replace('/(tabs)/ConsultScreen'),
+            }]
+          );
+        }
       } else {
-        Alert.alert(
-          'Переадресация',
-          'Для общения с продавцом перейдите в раздел "Консультация"',
-          [{ 
-            text: 'Перейти', 
-            onPress: () => router.replace('/(tabs)/ConsultScreen')
-          }]
-        );
+        await AsyncStorage.removeItem('token');
+        router.replace('/(tabs)/ConsultScreen');
       }
     } catch (e) {
       console.error('Error loading user data:', e);
