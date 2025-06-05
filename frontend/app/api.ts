@@ -137,6 +137,10 @@ export const chatApi = {
     const res = await api.post(`/chats/${sellerId}/messages`, { text });
     return res.data;
   },
+  getSellerInfo: async () => {
+    const res = await api.get('/seller');
+    return res.data as { id: number; name: string; email: string };
+  },
   getSellerChats: async () => {
     const res = await api.get('/seller-chats');
     return res.data;

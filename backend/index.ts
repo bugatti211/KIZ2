@@ -217,6 +217,15 @@ app.post('/login', asyncHandler(async (req: Request, res: Response) => {
   res.json({ token, user: tokenPayload });
 }));
 
+// Получить информацию о продавце (первый пользователь с ролью "seller")
+app.get('/seller', asyncHandler(async (req: Request, res: Response) => {
+  const seller = await User.findOne({ where: { role: UserRole.SELLER } });
+  if (!seller) {
+    return res.status(404).json({ error: 'Seller not found' });
+  }
+  res.json({ id: seller.id, name: seller.name, email: seller.email });
+}));
+
 // CRUD для объявлений
 app.post('/ads', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
   const { text, phone } = req.body;
