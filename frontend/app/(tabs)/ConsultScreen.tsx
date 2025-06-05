@@ -73,11 +73,10 @@ export default function ConsultScreen() {
       setIsAuthenticated(!!token);
       setIsAuthChecked(true);
       if (token) {
-        const tokenData = decodeToken(token);
-        if (tokenData) {
+        const tokenData = decodeToken(token);        if (tokenData) {
           const currentUserId = tokenData.id;
           setUserId(currentUserId);
-          chatHistoryService.setUserId(currentUserId);
+          chatHistoryService.setUserId(currentUserId.toString());
           loadChatHistory();
           loadSellerChatHistory(currentUserId, sellerId);
         } else {
