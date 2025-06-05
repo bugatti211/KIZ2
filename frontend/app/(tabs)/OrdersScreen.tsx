@@ -292,7 +292,7 @@ export default function OrdersScreen() {
             <View style={styles.emptyContainer}>
               <Ionicons name="receipt-outline" size={64} color="#ccc" />
               <Text style={styles.emptyText}>
-                Нет заказов с типом "{activeTab}"
+                Нет заказов с типом {activeTab}
               </Text>
             </View>
           }
