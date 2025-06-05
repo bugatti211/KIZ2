@@ -8,23 +8,16 @@ import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCart } from '../CartContext';
 import { useRouter } from 'expo-router';
+import type { TabParamList } from '../../types/navigation';
 
 type RootStackParamList = {
   CategoryProductsScreen: { category: string } | undefined;
   ProductCardScreen: { product: any } | undefined;
 };
 
-type RootTabParamList = {
-  Catalog: undefined;
-  Consult: undefined;
-  Cart: undefined;
-  Profile: undefined;
-  Ads: undefined;
-};
-
 type ProductCardScreenNavigationProp = CompositeNavigationProp<
   NativeStackNavigationProp<RootStackParamList>,
-  BottomTabNavigationProp<RootTabParamList>
+  BottomTabNavigationProp<TabParamList>
 >;
 
 export default function ProductCardScreen({ route }: any) {
@@ -129,10 +122,10 @@ export default function ProductCardScreen({ route }: any) {
               )}
             </View>
             <View style={styles.buttonWrapper}>
-              <Button 
-                title="Консультация" 
+              <Button
+                title="Консультация"
                 color="#2196F3"
-                onPress={() => navigation.navigate('Consult')}
+                onPress={() => navigation.navigate('consult')}
               />
             </View>
           </View>
