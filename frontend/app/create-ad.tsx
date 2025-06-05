@@ -14,7 +14,8 @@ import {
 import { useRouter } from 'expo-router';
 import api from './api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { UserRole } from './constants/Roles';
+import { UserRole } from '../constants/Roles';
+import { decodeToken } from './utils/tokenUtils';
 
 export default function CreateAdScreen() {
   const router = useRouter();
@@ -26,14 +27,16 @@ export default function CreateAdScreen() {
     (async () => {
       const token = await AsyncStorage.getItem('token');
       if (token) {
-        try {
-          const data = JSON.parse(atob(token.split('.')[1]));
+        try {          const tokenData = decodeToken(token);
+          if (!tokenData) {
+            throw new Error('Invalid token data');
+          }
           const staff = [
             UserRole.ADMIN,
             UserRole.SELLER,
             UserRole.ACCOUNTANT,
             UserRole.LOADER,
-          ].includes(data.role);
+          ].includes(tokenData.role);
           if (staff) {
             router.back();
           }

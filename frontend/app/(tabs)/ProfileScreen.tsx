@@ -39,13 +39,17 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
   const [user, setUser] = useState<ProfileUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const { showAuthModal, setShowAuthModal, setAuthMode } = useAuthModal();
-  const isStaffUser = user ? [
+  const { showAuthModal, setShowAuthModal, setAuthMode } = useAuthModal();  const isStaffUser = user ? [
     UserRole.ADMIN,
     UserRole.SELLER,
     UserRole.ACCOUNTANT,
     UserRole.LOADER,
   ].includes(user.role) : false;
+
+  // Additional role checks for specific functionality
+  const canAccessOrders = user?.role === UserRole.ADMIN || user?.role === UserRole.LOADER || user?.role === UserRole.SELLER;
+  const canAccessSupplies = user?.role === UserRole.ADMIN || user?.role === UserRole.LOADER || user?.role === UserRole.SELLER;
+  const canAccessSales = user?.role === UserRole.ADMIN || user?.role === UserRole.SELLER;
 
   // Common state management
   const [showCreate, setShowCreate] = useState(false);
@@ -567,14 +571,15 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
                 <Text style={styles.role}>{roleTranslations[user.role as UserRole] || user.role}</Text>
               </View>
               {/* Меню действий */}
-              <View style={styles.menuContainer}>
-                {renderMenuItem('👤', 'Личные данные', () => setShowPersonalInfo(true))}
+              <View style={styles.menuContainer}>                {renderMenuItem('👤', 'Личные данные', () => setShowPersonalInfo(true))}
                 {!isStaffUser &&
                   renderMenuItem('🛍️', 'Мои заказы', () => navigationNative.navigate('MyOrders'))}
-                {renderMenuItem('📦', 'Управление товарами', () => navigationNative.navigate('ProductManagementScreen'))}
-                {renderMenuItem('📋', 'Поставки', () => setShowSupplyModal(true))}
-                {renderMenuItem('💰', 'Оффлайн-продажи', () => navigationNative.navigate('OfflineSalesScreen'))}
-                {renderMenuItem('📈', 'История продаж', () => navigationNative.navigate('SalesHistory'))}
+                {canAccessOrders && renderMenuItem('📋', 'Заказы', () => navigation.navigate('orders'))}
+                {(user?.role === UserRole.ADMIN || user?.role === UserRole.SELLER) && 
+                  renderMenuItem('📦', 'Управление товарами', () => navigationNative.navigate('ProductManagementScreen'))}
+                {canAccessSupplies && renderMenuItem('📋', 'Поставки', () => setShowSupplyModal(true))}
+                {canAccessSales && renderMenuItem('💰', 'Оффлайн-продажи', () => navigationNative.navigate('OfflineSalesScreen'))}
+                {canAccessSales && renderMenuItem('📈', 'История продаж', () => navigationNative.navigate('SalesHistory'))}
                 {renderMenuItem('👥', 'Регистрация сотрудника', () => setShowEmployeeRegistration(true))}
                 {renderMenuItem('🚪', 'Выйти', handleLogout, '#FFE5E5')}
               </View>

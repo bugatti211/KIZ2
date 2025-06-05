@@ -10,6 +10,7 @@ import { useCart } from '../CartContext';
 import { useRouter } from 'expo-router';
 import type { TabParamList } from '../../types/navigation';
 import { UserRole } from '../../constants/Roles';
+import { decodeToken } from '../utils/tokenUtils';
 
 type RootStackParamList = {
   CategoryProductsScreen: { category: string } | undefined;
@@ -45,8 +46,10 @@ export default function ProductCardScreen({ route }: any) {
     (async () => {
       const token = await AsyncStorage.getItem('token');
       if (token) {
-        try {
-          const tokenData = JSON.parse(atob(token.split('.')[1]));
+        try {          const tokenData = decodeToken(token);
+          if (!tokenData) {
+            throw new Error('Invalid token data');
+          }
           setIsStaff([
             UserRole.ADMIN,
             UserRole.SELLER,

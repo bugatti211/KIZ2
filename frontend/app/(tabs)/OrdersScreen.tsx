@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../api';
 import { UserRole } from '../../constants/Roles';
+import { decodeToken } from '../utils/tokenUtils';
 
 type Order = {
   id: number;
@@ -37,13 +38,15 @@ export default function OrdersScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [expandedOrders, setExpandedOrders] = useState<number[]>([]);
   const [role, setRole] = useState<UserRole | null>(null);
-
   const loadRole = useCallback(async () => {
     const token = await AsyncStorage.getItem('token');
     if (token) {
       try {
-        const data = JSON.parse(atob(token.split('.')[1]));
-        setRole(data.role as UserRole);
+        const tokenData = decodeToken(token);
+        if (!tokenData) {
+          throw new Error('Invalid token data');
+        }
+        setRole(tokenData.role);
       } catch (e) {
         console.error('Error parsing token:', e);
         setRole(null);

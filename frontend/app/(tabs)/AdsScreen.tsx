@@ -6,6 +6,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { UserRole } from '../../constants/Roles';
+import { decodeToken } from '../utils/tokenUtils';
 
 type AdStatus = 'pending' | 'approved' | 'rejected';
 
@@ -38,6 +39,7 @@ export default function AdsScreen() {
   const [isAuthChecked, setIsAuthChecked] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoader, setIsLoader] = useState(false);
   const [isStaff, setIsStaff] = useState(false);
   const [ads, setAds] = useState<Ad[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,10 +49,11 @@ export default function AdsScreen() {
   const fetchAds = async () => {
     setLoading(true);
     setError('');
-    try {      const endpoint = isAdmin ? '/ads/moderation' : '/ads';
+    try {
+      const endpoint = '/ads';
       const response = await api.get(endpoint);
       const responseData = response.data as Ad[];
-        // Filter ads based on status and authorization
+
       const filteredAds = responseData.filter(ad => {
         // Remove deleted ads for everyone
         if (ad.deleted) return false;
@@ -58,17 +61,18 @@ export default function AdsScreen() {
         if (!isAuthenticated) {
           // For unauthorized users: show only approved ads
           return ad.status === 'approved';
-        } else if (isAdmin) {
-          // For admins: show pending and approved ads
+        } else if (isAdmin || isLoader) {
+          // For admins and loaders: show pending and approved ads
           return ad.status !== 'rejected';
         } else {
-          // For authorized non-admin users: show only approved ads
+          // For other authorized users: show only approved ads
           return ad.status === 'approved';
         }
       });
-        const sortedAds = filteredAds.sort((a, b) => {
-        if (isAdmin && a.status !== b.status) {
-          // For admin, show pending first, then approved
+
+      const sortedAds = filteredAds.sort((a, b) => {
+        if ((isAdmin || isLoader) && a.status !== b.status) {
+          // For admin and loaders, show pending first, then approved
           return a.status === 'pending' ? -1 : 1;
         }
         // Sort by date (newest first)
@@ -126,23 +130,26 @@ export default function AdsScreen() {
       ]
     );
   };
-
   useEffect(() => {
     (async () => {
       const token = await AsyncStorage.getItem('token');
       if (token) {
         setIsAuthenticated(true);
-        const tokenData = JSON.parse(atob(token.split('.')[1]));
-        setIsAdmin(tokenData.role === UserRole.ADMIN);
-        setIsStaff([
-          UserRole.ADMIN,
-          UserRole.SELLER,
-          UserRole.ACCOUNTANT,
-          UserRole.LOADER,
-        ].includes(tokenData.role));
+        const tokenData = decodeToken(token);
+        if (tokenData) {
+          setIsAdmin(tokenData.role === UserRole.ADMIN);
+          setIsLoader(tokenData.role === UserRole.LOADER);
+          setIsStaff([
+            UserRole.ADMIN,
+            UserRole.SELLER,
+            UserRole.ACCOUNTANT,
+            UserRole.LOADER,
+          ].includes(tokenData.role));
+        }
       } else {
         setIsAuthenticated(false);
         setIsAdmin(false);
+        setIsLoader(false);
         setIsStaff(false);
       }
       setIsAuthChecked(true);
@@ -176,8 +183,7 @@ export default function AdsScreen() {
           renderItem={({ item }) => (
             <View style={styles.adCard}>
               <Text style={styles.adText}>{item.text}</Text>
-              <Text style={styles.adPhone}>{item.phone}</Text>
-              {isAdmin && (
+              <Text style={styles.adPhone}>{item.phone}</Text>              {(isAdmin || isLoader) && (
                 <View style={styles.moderationButtons}>
                   {item.status === 'pending' ? (
                     <>
@@ -195,8 +201,9 @@ export default function AdsScreen() {
                       </TouchableOpacity>
                     </>
                   ) : (
-                    <View style={styles.statusContainer}>                      <Text style={styles.statusText}>Подтверждено</Text>
-                      {(
+                    <View style={styles.statusContainer}>                      
+                      <Text style={styles.statusText}>Подтверждено</Text>
+                      {isAdmin && (
                         <TouchableOpacity
                           style={[styles.moderationButton, styles.deleteButton]}
                           onPress={() => handleDelete(item.id)}

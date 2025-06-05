@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../api';
 import { useAuthModal } from '../AuthContext';
+import { decodeToken } from '../utils/tokenUtils';
 
 // Styles definition moved to top for reference
 const styles = StyleSheet.create({
@@ -365,12 +366,14 @@ export default function CartScreen() {
   }, [showOrderModal]);
 
   const loadUserData = async () => {
-    try {
-      const res = await api.get('/users');
+    try {      const res = await api.get('/users');
       const token = await AsyncStorage.getItem('token');
       if (token) {
-        const tokenPayload = JSON.parse(atob(token.split('.')[1]));
-        const currentUser = res.data.find((u: any) => u.email === tokenPayload.email);
+        const tokenData = decodeToken(token);
+        if (!tokenData) {
+          throw new Error('Invalid token data');
+        }
+        const currentUser = res.data.find((u: any) => u.email === tokenData.email);
         if (currentUser) {
           setUser(currentUser);
           setOrderForm(prev => ({
@@ -420,10 +423,11 @@ export default function CartScreen() {
     if (orderForm.deliveryMethod === 'Доставка' && !orderForm.address.trim()) {
       Alert.alert('Ошибка', 'Пожалуйста, укажите адрес доставки');
       return;
-    }
-
-    try {
-      const tokenData = JSON.parse(atob(token.split('.')[1]));
+    }    try {
+      const tokenData = decodeToken(token);
+      if (!tokenData) {
+        throw new Error('Invalid token data');
+      }
       const userId = tokenData.id;
 
       const orderData = {
