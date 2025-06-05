@@ -40,6 +40,12 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
   const [isLoading, setIsLoading] = useState(true);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const { showAuthModal, setShowAuthModal, setAuthMode } = useAuthModal();
+  const isStaffUser = user ? [
+    UserRole.ADMIN,
+    UserRole.SELLER,
+    UserRole.ACCOUNTANT,
+    UserRole.LOADER,
+  ].includes(user.role) : false;
 
   // Common state management
   const [showCreate, setShowCreate] = useState(false);
@@ -563,12 +569,12 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
               {/* Меню действий */}
               <View style={styles.menuContainer}>
                 {renderMenuItem('👤', 'Личные данные', () => setShowPersonalInfo(true))}
-                {renderMenuItem('🛍️', 'Мои заказы', () => navigationNative.navigate('MyOrders'))}
+                {!isStaffUser &&
+                  renderMenuItem('🛍️', 'Мои заказы', () => navigationNative.navigate('MyOrders'))}
                 {renderMenuItem('📦', 'Управление товарами', () => navigationNative.navigate('ProductManagementScreen'))}
                 {renderMenuItem('📋', 'Поставки', () => setShowSupplyModal(true))}
                 {renderMenuItem('💰', 'Оффлайн-продажи', () => navigationNative.navigate('OfflineSalesScreen'))}
                 {renderMenuItem('📈', 'История продаж', () => navigationNative.navigate('SalesHistory'))}
-                {renderMenuItem('⚖️', 'Объявления на модерацию', () => router.push('/(tabs)/AdsScreen'))}
                 {renderMenuItem('👥', 'Регистрация сотрудника', () => setShowEmployeeRegistration(true))}
                 {renderMenuItem('🚪', 'Выйти', handleLogout, '#FFE5E5')}
               </View>

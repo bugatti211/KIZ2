@@ -9,6 +9,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCart } from '../CartContext';
 import { useRouter } from 'expo-router';
 import type { TabParamList } from '../../types/navigation';
+import { UserRole } from '../../constants/Roles';
 
 type RootStackParamList = {
   CategoryProductsScreen: { category: string } | undefined;
@@ -26,6 +27,7 @@ export default function ProductCardScreen({ route }: any) {
   const { product } = route.params || {};
   const { addToCart } = useCart();
   const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [isStaff, setIsStaff] = useState(false);
 
   // Set up header back button without label
   useEffect(() => {
@@ -37,7 +39,30 @@ export default function ProductCardScreen({ route }: any) {
         />
       ),
     });
-  }, [navigation]);  const handleBuyPress = async () => {
+  }, [navigation]);
+
+  useEffect(() => {
+    (async () => {
+      const token = await AsyncStorage.getItem('token');
+      if (token) {
+        try {
+          const tokenData = JSON.parse(atob(token.split('.')[1]));
+          setIsStaff([
+            UserRole.ADMIN,
+            UserRole.SELLER,
+            UserRole.ACCOUNTANT,
+            UserRole.LOADER,
+          ].includes(tokenData.role));
+        } catch {
+          setIsStaff(false);
+        }
+      } else {
+        setIsStaff(false);
+      }
+    })();
+  }, []);
+
+  const handleBuyPress = async () => {
     try {
       // First check if user is authenticated
       const token = await AsyncStorage.getItem('token');
@@ -107,29 +132,31 @@ export default function ProductCardScreen({ route }: any) {
         )}
 
         {/* Кнопки действий */}
-        <View style={styles.buttonContainer}>
-          <View style={styles.buttonRow}>
-            <View style={styles.buttonWrapper}>
-              {isAddingToCart ? (
-                <ActivityIndicator size="small" color="#4caf50" />
-              ) : (
-                <Button 
-                  title="Купить" 
-                  color="#4caf50"
-                  disabled={product.stock <= 0}
-                  onPress={handleBuyPress}
+        {!isStaff && (
+          <View style={styles.buttonContainer}>
+            <View style={styles.buttonRow}>
+              <View style={styles.buttonWrapper}>
+                {isAddingToCart ? (
+                  <ActivityIndicator size="small" color="#4caf50" />
+                ) : (
+                  <Button
+                    title="Купить"
+                    color="#4caf50"
+                    disabled={product.stock <= 0}
+                    onPress={handleBuyPress}
+                  />
+                )}
+              </View>
+              <View style={styles.buttonWrapper}>
+                <Button
+                  title="Консультация"
+                  color="#2196F3"
+                  onPress={() => navigation.navigate('consult')}
                 />
-              )}
-            </View>
-            <View style={styles.buttonWrapper}>
-              <Button
-                title="Консультация"
-                color="#2196F3"
-                onPress={() => navigation.navigate('consult')}
-              />
+              </View>
             </View>
           </View>
-        </View>
+        )}
       </View>
     </ScrollView>
   );

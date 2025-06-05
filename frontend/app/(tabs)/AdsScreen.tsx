@@ -5,6 +5,7 @@ import api from '../api';
 import { useIsFocused } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { UserRole } from '../../constants/Roles';
 
 type AdStatus = 'pending' | 'approved' | 'rejected';
 
@@ -37,6 +38,7 @@ export default function AdsScreen() {
   const [isAuthChecked, setIsAuthChecked] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isStaff, setIsStaff] = useState(false);
   const [ads, setAds] = useState<Ad[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -131,10 +133,17 @@ export default function AdsScreen() {
       if (token) {
         setIsAuthenticated(true);
         const tokenData = JSON.parse(atob(token.split('.')[1]));
-        setIsAdmin(tokenData.role === 'admin');
+        setIsAdmin(tokenData.role === UserRole.ADMIN);
+        setIsStaff([
+          UserRole.ADMIN,
+          UserRole.SELLER,
+          UserRole.ACCOUNTANT,
+          UserRole.LOADER,
+        ].includes(tokenData.role));
       } else {
         setIsAuthenticated(false);
         setIsAdmin(false);
+        setIsStaff(false);
       }
       setIsAuthChecked(true);
     })();
@@ -208,18 +217,20 @@ export default function AdsScreen() {
       )}
 
       {/* Floating Action Button */}
-      <TouchableOpacity
-        style={styles.createButton}
-        onPress={() => {
-          if (!isAuthenticated) {
-            setShowAuth(true);
-          } else {
-            router.push('/create-ad');
-          }
-        }}
-      >
-        <Ionicons name="add" size={24} color="#fff" />
-      </TouchableOpacity>
+      {!isStaff && (
+        <TouchableOpacity
+          style={styles.createButton}
+          onPress={() => {
+            if (!isAuthenticated) {
+              setShowAuth(true);
+            } else {
+              router.push('/create-ad');
+            }
+          }}
+        >
+          <Ionicons name="add" size={24} color="#fff" />
+        </TouchableOpacity>
+      )}
 
       <Modal visible={showAuth} animationType="fade" transparent>
         <View style={styles.modalOverlay}>
