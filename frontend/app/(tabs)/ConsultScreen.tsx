@@ -18,12 +18,14 @@ import { chatApi } from '../api';
 import { SELLER_ID } from '../config/env';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
+import { yandexGptService } from '../../services/yandexGptService';
+import { AI_ASSISTANT_CONTEXT, INITIAL_AI_MESSAGE } from '../config/aiAssistant';
 
 interface Message {
   id?: number;
   senderId?: number;
   receiverId?: number;
-  role: 'user' | 'seller';
+  role: 'user' | 'seller' | 'assistant';
   text: string;
   timestamp: number;
   createdAt?: string;
@@ -48,6 +50,8 @@ export default function ConsultScreen() {
   const [showAuth, setShowAuth] = useState(false);
   const [userId, setUserId] = useState<number | null>(null);
   const [isAuthChecked, setIsAuthChecked] = useState(false);
+  const [useAiAssistant, setUseAiAssistant] = useState(true);
+
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -88,21 +92,21 @@ export default function ConsultScreen() {
   }, [router]);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || useAiAssistant) return;
 
     const interval = setInterval(() => {
       loadChatHistory(userId);
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [userId]);
-  const loadChatHistory = async (currentUserId: number | null) => {
-    try {
-      if (!currentUserId) {
-        setMessages([]);
-        return;
-      }
+  }, [userId, useAiAssistant]);
 
+  const loadChatHistory = async (currentUserId: number | null) => {
+    if (useAiAssistant || !currentUserId) {
+      return;
+    }
+
+    try {
       setIsLoading(true);
       const token = await AsyncStorage.getItem('token');
       if (!token) {
@@ -142,31 +146,69 @@ export default function ConsultScreen() {
     }
   };
   const sendMessage = async () => {
-    if (!inputMessage.trim() || !userId) return;
-
-    const token = await AsyncStorage.getItem('token');
-    if (!token) {
-      setIsAuthenticated(false);
-      setShowAuth(true);
-      return;
-    }
+    if (!inputMessage.trim()) return;
 
     const text = inputMessage.trim();
     setInputMessage('');
     setIsSending(true);
 
     try {
-      const response = await chatApi.sendMessageToSeller(SELLER_ID, text);
-      if (response) {
-        const newMessage: Message = {
-          id: response.id,
-          senderId: userId,
-          receiverId: SELLER_ID,
-          role: 'user',
-          text,
-          timestamp: new Date(response.createdAt).getTime()
-        };
-        setMessages(prev => [...prev, newMessage]);
+      // Add user message immediately
+      const userMessage: Message = {
+        role: 'user',
+        text,
+        timestamp: Date.now()
+      };
+      setMessages(prev => [...prev, userMessage]);
+
+      if (useAiAssistant) {
+        try {
+          // Get response from AI
+          const aiResponse = await yandexGptService.sendMessage(
+            `${AI_ASSISTANT_CONTEXT}\n\nUser: ${text}\nAssistant:`
+          );
+          
+          const assistantMessage: Message = {
+            role: 'assistant',
+            text: aiResponse,
+            timestamp: Date.now()
+          };
+          setMessages(prev => [...prev, assistantMessage]);
+        } catch (error) {
+          console.error('Error getting AI response:', error);
+          Alert.alert(
+            'Ошибка',
+            'Не удалось получить ответ от AI-помощника. Переключаюсь на чат с продавцом...'
+          );
+          setUseAiAssistant(false);
+        }
+      } else {
+        // Regular chat with seller
+        if (!userId) {
+          setIsAuthenticated(false);
+          setShowAuth(true);
+          return;
+        }
+
+        const token = await AsyncStorage.getItem('token');
+        if (!token) {
+          setIsAuthenticated(false);
+          setShowAuth(true);
+          return;
+        }
+
+        const response = await chatApi.sendMessageToSeller(SELLER_ID, text);
+        if (response) {
+          const newMessage: Message = {
+            id: response.id,
+            senderId: userId,
+            receiverId: SELLER_ID,
+            role: 'user',
+            text,
+            timestamp: new Date(response.createdAt).getTime()
+          };
+          setMessages(prev => [...prev, newMessage]);
+        }
       }
     } catch (error: any) {
       console.error('Error sending message:', error);
@@ -198,18 +240,20 @@ export default function ConsultScreen() {
       key={index} 
       style={[
         styles.messageContainer,
-        message.role === 'user' ? styles.userMessage : styles.sellerMessage
+        message.role === 'user' ? styles.userMessage : 
+        message.role === 'assistant' ? styles.assistantMessage : styles.sellerMessage
       ]}
-    >
-      <Text style={[
-        styles.messageText,
-        message.role === 'user' && styles.userMessageText
-      ]}>
-        {message.text}
-      </Text>
+    >                  <Text style={[
+                    styles.messageText,
+                    message.role === 'user' ? styles.userMessageText : 
+                    message.role === 'assistant' ? styles.assistantMessageText : null
+                  ]}>
+                    {message.text}
+                  </Text>
       <Text style={[
         styles.messageTime,
-        message.role === 'user' ? styles.userMessageTime : styles.sellerMessageTime
+        message.role === 'user' ? styles.userMessageTime : 
+        message.role === 'assistant' ? styles.assistantMessageTime : styles.sellerMessageTime
       ]}>
         {formatMessageTime(message.timestamp)}
       </Text>
@@ -217,11 +261,11 @@ export default function ConsultScreen() {
   );
 
   const renderChatContent = () => {
-    if (!isAuthenticated) {
+    if (!useAiAssistant && !isAuthenticated) {
       return (
         <View style={styles.authContainer}>
           <Text style={styles.authText}>
-            Для использования чата необходимо авторизоваться
+            Для использования чата с продавцом необходимо авторизоваться
           </Text>
           <TouchableOpacity 
             style={styles.authButton}
@@ -250,11 +294,39 @@ export default function ConsultScreen() {
             </Text>
           ) : (
             <>
-              {messages.map(renderMessage)}
+              {messages.map((message, index) => (
+                <View 
+                  key={index} 
+                  style={[
+                    styles.messageContainer,
+                    message.role === 'user' ? styles.userMessage : 
+                    message.role === 'assistant' ? styles.assistantMessage : 
+                    styles.sellerMessage
+                  ]}
+                >
+                  <Text style={[
+                    styles.messageText,
+                    message.role === 'user' ? styles.userMessageText : 
+                    message.role === 'assistant' && styles.assistantMessageText
+                  ]}>
+                    {message.text}
+                  </Text>
+                  <Text style={[
+                    styles.messageTime,
+                    message.role === 'user' ? styles.userMessageTime : 
+                    message.role === 'assistant' ? styles.assistantMessageTime : 
+                    styles.sellerMessageTime
+                  ]}>
+                    {formatMessageTime(message.timestamp)}
+                  </Text>
+                </View>
+              ))}
               {isSending && (
                 <View style={styles.typingIndicator}>
                   <ActivityIndicator size="small" color="#0066cc" />
-                  <Text style={styles.typingText}>Отправка...</Text>
+                  <Text style={styles.typingText}>
+                    {useAiAssistant ? 'AI помощник печатает...' : 'Отправка...'}
+                  </Text>
                 </View>
               )}
             </>
@@ -266,7 +338,9 @@ export default function ConsultScreen() {
             style={styles.input}
             value={inputMessage}
             onChangeText={setInputMessage}
-            placeholder="Введите сообщение..."
+            placeholder={useAiAssistant ? 
+              "Задайте вопрос AI-помощнику..." : 
+              "Введите сообщение для продавца..."}
             multiline
             maxLength={1000}
           />
@@ -286,12 +360,36 @@ export default function ConsultScreen() {
     );
   };
 
+  // Add initial AI message
+  useEffect(() => {
+    if (useAiAssistant && messages.length === 0) {
+      const initialMessage: Message = {
+        role: 'assistant',
+        text: INITIAL_AI_MESSAGE,
+        timestamp: Date.now()
+      };
+      setMessages([initialMessage]);
+    }
+  }, [useAiAssistant]);
+
   if (!isAuthChecked) return null;
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerText}>Чат с продавцом</Text>
+    <View style={styles.container}>      <View style={styles.header}>
+        <Text style={[styles.title, { flex: 1 }]}>
+          {useAiAssistant ? 'Чат с AI-помощником' : 'Чат с продавцом'}
+        </Text>
+        <TouchableOpacity 
+          style={styles.switchButton}
+          onPress={() => {
+            setUseAiAssistant(!useAiAssistant);
+            setMessages([]); // Clear messages when switching
+          }}
+        >
+          <Text style={styles.switchButtonText}>
+            {useAiAssistant ? 'Переключиться на продавца' : 'Переключиться на AI'}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {renderChatContent()}
@@ -338,18 +436,30 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-  },
-  header: {
+  },  header: {
     padding: 16,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center'
   },
-  headerText: {
+  title: {
     fontSize: 20,
     fontWeight: '600',
     color: '#333',
-    textAlign: 'center',
+    textAlign: 'center'
+  },
+  switchButton: {
+    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  switchButtonText: {
+    fontSize: 14,
+    color: '#666',
   },
   chatContainer: {
     flex: 1,
@@ -409,6 +519,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#c8e6c9',
   },
+  assistantMessage: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#E8F5E9',
+    borderWidth: 1,
+    borderColor: '#C8E6C9',
+  },
   messageText: {
     fontSize: 16,
     lineHeight: 22,
@@ -417,6 +533,9 @@ const styles = StyleSheet.create({
   userMessageText: {
     color: '#FFFFFF',
   },
+  assistantMessageText: {
+    color: '#2E7D32',
+  },
   messageTime: {
     fontSize: 12,
     marginTop: 4,
@@ -424,6 +543,10 @@ const styles = StyleSheet.create({
   userMessageTime: {
     color: 'rgba(255, 255, 255, 0.7)',
     textAlign: 'right',
+  },
+  assistantMessageTime: {
+    color: '#81C784',
+    textAlign: 'left',
   },
   sellerMessageTime: {
     color: '#8E8E93',
