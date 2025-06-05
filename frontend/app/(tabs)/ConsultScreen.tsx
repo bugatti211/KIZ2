@@ -17,6 +17,7 @@ import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { chatHistoryService } from '../../services/chatHistoryService';
 import { chatApi } from '../api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { decodeToken } from '../utils/tokenUtils';
 import { useRouter } from 'expo-router';
 
 interface Message {
@@ -68,12 +69,19 @@ export default function ConsultScreen() {
       setIsAuthenticated(!!token);
       setIsAuthChecked(true);
       if (token) {
-        const tokenData = JSON.parse(atob(token.split('.')[1]));
-        const currentUserId = tokenData.id;
-        setUserId(currentUserId);
-        chatHistoryService.setUserId(currentUserId);
-        loadChatHistory();
-        loadSellerChatHistory(currentUserId, sellerId);
+        const tokenData = decodeToken(token);
+        if (tokenData) {
+          const currentUserId = tokenData.id;
+          setUserId(currentUserId);
+          chatHistoryService.setUserId(currentUserId);
+          loadChatHistory();
+          loadSellerChatHistory(currentUserId, sellerId);
+        } else {
+          await AsyncStorage.removeItem('token');
+          setUserId(null);
+          chatHistoryService.setUserId(null);
+          loadSellerChatHistory(null, sellerId);
+        }
       } else {
         setUserId(null);
         chatHistoryService.setUserId(null);
