@@ -11,7 +11,8 @@ import {
   Platform,
   Modal,
   Pressable,
-  Alert
+  Alert,
+  FlatList
 } from 'react-native';
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { chatHistoryService } from '../../services/chatHistoryService';
@@ -19,6 +20,7 @@ import { chatApi } from '../api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { decodeToken } from '../utils/tokenUtils';
+import { UserRole } from '../../constants/Roles';
 
 interface Message {
   id?: number;
@@ -36,6 +38,21 @@ interface ApiMessage {
   receiverId: number;
   text: string;
   createdAt: string;
+}
+
+interface ChatInfo {
+  userId: number;
+  userName: string;
+  lastMessage?: {
+    text: string;
+  };
+}
+
+interface ChatMessage {
+  id: number;
+  text: string;
+  createdAt: string;
+  senderId: number;
 }
 
 export default function ConsultScreen() {
@@ -453,11 +470,10 @@ export default function ConsultScreen() {
             </View>
           ) : chats.length > 0 ? (
             <>
-              <Text style={styles.title}>Активные чаты</Text>
-              <FlatList
+              <Text style={styles.title}>Активные чаты</Text>              <FlatList<ChatInfo>
                 data={chats}
-                keyExtractor={(item) => item.userId.toString()}
-                renderItem={({ item }) => (
+                keyExtractor={(item: ChatInfo) => item.userId.toString()}
+                renderItem={({ item }: { item: ChatInfo }) => (
                   <TouchableOpacity
                     style={styles.chatItem}
                     onPress={() => {
@@ -501,12 +517,10 @@ export default function ConsultScreen() {
             <Text style={styles.backButtonText}>Назад</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Пользователь {activeUser}</Text>
-        </View>
-
-        <FlatList
+        </View>        <FlatList<ChatMessage>
           data={sellerMessages}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => (
+          keyExtractor={(item: ChatMessage) => item.id.toString()}
+          renderItem={({ item }: { item: ChatMessage }) => (
             <View style={myId === item.senderId ? styles.messageSeller : styles.messageUser}>
               <Text style={styles.messageText}>{item.text}</Text>
               <Text style={styles.messageTime}>{new Date(item.createdAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</Text>
