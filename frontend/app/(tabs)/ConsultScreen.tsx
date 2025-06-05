@@ -15,11 +15,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { chatApi } from '../api';
-import { SELLER_ID } from '../config/env';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { yandexGptService } from '../../services/yandexGptService';
 import { AI_ASSISTANT_CONTEXT, INITIAL_AI_MESSAGE } from '../config/aiAssistant';
+
 
 interface Message {
   id?: number;
@@ -49,6 +49,7 @@ export default function ConsultScreen() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [userId, setUserId] = useState<number | null>(null);
+  const [sellerId, setSellerId] = useState<number | null>(null);
   const [isAuthChecked, setIsAuthChecked] = useState(false);
   const [useAiAssistant, setUseAiAssistant] = useState(true);
 
@@ -86,7 +87,13 @@ export default function ConsultScreen() {
         setUserId(null);
         setMessages([]);
         setIsAuthChecked(true);
-      }
+
+
+      setIsAuthenticated(false);
+      setUserId(null);
+      chatHistoryService.setUserId(null);
+      setSellerId(null);
+      loadSellerChatHistory(null, null);
     };
     checkAuth();
   }, [router]);
@@ -100,6 +107,7 @@ export default function ConsultScreen() {
 
     return () => clearInterval(interval);
   }, [userId, useAiAssistant]);
+
 
   const loadChatHistory = async (currentUserId: number | null) => {
     if (useAiAssistant || !currentUserId) {
@@ -117,6 +125,7 @@ export default function ConsultScreen() {
       }
 
       const history: ApiMessage[] = await chatApi.getMessagesWithSeller(SELLER_ID);
+
       const formattedMessages: Message[] = history.map((msg: ApiMessage) => ({
         id: msg.id,
         senderId: msg.senderId,
@@ -143,6 +152,7 @@ export default function ConsultScreen() {
       }
     } finally {
       setIsLoading(false);
+
     }
   };
   const sendMessage = async () => {
@@ -190,6 +200,7 @@ export default function ConsultScreen() {
           return;
         }
 
+
         const token = await AsyncStorage.getItem('token');
         if (!token) {
           setIsAuthenticated(false);
@@ -211,6 +222,7 @@ export default function ConsultScreen() {
         }
       }
     } catch (error: any) {
+
       console.error('Error sending message:', error);
       if (error?.response?.status === 401) {
         await AsyncStorage.removeItem('token');

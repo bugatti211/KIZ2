@@ -4,6 +4,7 @@ import { chatApi } from '../api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { UserRole } from '../../constants/Roles';
+import { decodeToken } from '../utils/tokenUtils';
 import { useRouter } from 'expo-router';
 
 interface ChatMessage {
@@ -53,6 +54,7 @@ export default function SellerChatsScreen() {
       } catch (e) {
         console.error('Error parsing token:', e);
         router.replace('/(tabs)/ConsultScreen');
+
       }
     } catch (e) {
       console.error('Error loading user data:', e);
@@ -84,6 +86,7 @@ export default function SellerChatsScreen() {
       } else if (e?.response?.status === 403) {
         router.replace('/(tabs)/ConsultScreen');
       } else {
+
         Alert.alert(
           'Ошибка',
           'Не удалось загрузить список чатов. Попробуйте позже.',
@@ -114,6 +117,7 @@ export default function SellerChatsScreen() {
         await AsyncStorage.removeItem('token');
         router.replace('/(auth)/login');
       } else if ((e as any)?.response?.status === 403) {
+
         Alert.alert(
           'Ошибка доступа',
           'У вас нет прав для просмотра сообщений',
@@ -192,6 +196,7 @@ export default function SellerChatsScreen() {
           'У вас нет прав для отправки сообщений',
           [{ text: 'OK', onPress: () => router.replace('/(tabs)/ConsultScreen') }]
         );
+
       } else {
         Alert.alert('Ошибка', 'Не удалось отправить сообщение. Попробуйте еще раз.');
       }

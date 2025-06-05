@@ -135,6 +135,10 @@ export const orderApi = {
 };
 
 export const chatApi = {
+  getSellerInfo: async () => {
+    const res = await api.get('/seller');
+    return res.data as { id: number; name: string; email: string };
+  },
   getMessagesWithSeller: async (sellerId: number) => {
     try {
       const token = await AsyncStorage.getItem('token');
@@ -206,5 +210,6 @@ export const chatApi = {
     }
   }
 };
+
 
 export default api;

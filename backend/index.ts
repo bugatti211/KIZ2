@@ -108,6 +108,7 @@ SupplyItem.sync();
 // Синхронизация модели ChatMessage с БД
 ChatMessage.sync();
 
+
 // CRUD роуты для User
 app.post('/users', asyncHandler(async (req: Request, res: Response) => {
   const user = await User.create(req.body);
@@ -216,6 +217,7 @@ app.post('/login', asyncHandler(async (req: Request, res: Response) => {
   const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '7d' });
   res.json({ token, user: tokenPayload });
 }));
+
 
 // CRUD для объявлений
 app.post('/ads', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
@@ -495,6 +497,20 @@ app.get('/api/contacts', asyncHandler(async (req: Request, res: Response) => {
     return res.status(404).json({ message: 'Contacts not found' });
   }
   res.json(contacts);
+}));
+
+// Endpoint to get seller account information
+app.get('/seller', asyncHandler(async (req: Request, res: Response) => {
+  try {
+    const seller = await User.findOne({ where: { role: UserRole.SELLER } });
+    if (!seller) {
+      return res.status(404).json({ error: 'Seller not found' });
+    }
+    res.json({ id: seller.id, name: seller.name, email: seller.email });
+  } catch (error) {
+    console.error('Error fetching seller info:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 }));
 
 // Cart Endpoints
@@ -1064,14 +1080,13 @@ app.get('/seller-chats', authMiddleware as any, asyncHandler(async (req: Request
   // @ts-ignore
   const sellerId = req.user.id;
   // @ts-ignore
-  const role = req.user.role;
+  const role = (req.user.role || '').trim();
 
   if (role !== UserRole.SELLER) {
     return res.status(403).json({ error: 'Forbidden' });
   }
 
   try {
-    // Get all messages for the seller with user information
     const messages = await ChatMessage.findAll({
       where: {
         [Op.or]: [{ senderId: sellerId }, { receiverId: sellerId }]
@@ -1083,12 +1098,11 @@ app.get('/seller-chats', authMiddleware as any, asyncHandler(async (req: Request
       order: [['createdAt', 'DESC']]
     });
 
-    // Group messages by user and get the last message for each
     const chatsByUser = new Map();
     messages.forEach((message: any) => {
       const otherUserId = message.senderId === sellerId ? message.receiverId : message.senderId;
       const otherUser = message.senderId === sellerId ? message.receiver : message.sender;
-      
+
       if (!chatsByUser.has(otherUserId)) {
         chatsByUser.set(otherUserId, {
           userId: otherUserId,
@@ -1101,7 +1115,7 @@ app.get('/seller-chats', authMiddleware as any, asyncHandler(async (req: Request
             text: message.text,
             createdAt: message.createdAt
           },
-          unreadCount: 0 // TODO: Implement unread count
+          unreadCount: 0
         });
       }
     });
@@ -1121,7 +1135,7 @@ app.get('/seller-chats/:userId', authMiddleware as any, asyncHandler(async (req:
   // @ts-ignore
   const sellerId = req.user.id;
   // @ts-ignore
-  const role = req.user.role;
+  const role = (req.user.role || '').trim();
 
   if (role !== UserRole.SELLER) {
     return res.status(403).json({ error: 'Forbidden' });
@@ -1146,7 +1160,7 @@ app.post('/seller-chats/:userId/messages', authMiddleware as any, asyncHandler(a
   // @ts-ignore
   const sellerId = req.user.id;
   // @ts-ignore
-  const role = req.user.role;
+  const role = (req.user.role || '').trim();
 
   if (role !== UserRole.SELLER) {
     return res.status(403).json({ error: 'Forbidden' });
@@ -1164,6 +1178,7 @@ app.post('/seller-chats/:userId/messages', authMiddleware as any, asyncHandler(a
 
   res.status(201).json(message);
 }));
+
 
 app.get('/seller-chats/:userId/messages', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
   const { userId } = req.params;
@@ -1188,6 +1203,7 @@ app.get('/seller-chats/:userId/messages', authMiddleware as any, asyncHandler(as
 
   res.json(messages);
 }));
+
 
 // Error handling middleware
 app.use((err: any, req: Request, res: Response, next: any) => {
