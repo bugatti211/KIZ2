@@ -207,4 +207,32 @@ export const chatApi = {
   }
 };
 
+export const employeeApi = {
+  // Get all employees (admin only)
+  getEmployees: async () => {
+    try {
+      const res = await api.get('/employees');
+      return res.data;
+    } catch (error: any) {
+      if (error?.response?.status === 401) {
+        await AsyncStorage.removeItem('token');
+      }
+      throw error;
+    }
+  },
+
+  // Update employee password (admin only)
+  updateEmployeePassword: async (employeeId: number, newPassword: string) => {
+    try {
+      const res = await api.put(`/employees/${employeeId}/password`, { newPassword });
+      return res.data;
+    } catch (error: any) {
+      if (error?.response?.status === 401) {
+        await AsyncStorage.removeItem('token');
+      }
+      throw error;
+    }
+  }
+};
+
 export default api;

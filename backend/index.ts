@@ -1189,6 +1189,63 @@ app.get('/seller-chats/:userId/messages', authMiddleware as any, asyncHandler(as
   res.json(messages);
 }));
 
+// -------- Employee Management Endpoints --------
+app.get('/employees', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
+  // @ts-ignore
+  if (req.user.role !== UserRole.ADMIN) {
+    return res.status(403).json({ error: 'Only admins can access employee information' });
+  }
+
+  try {
+    const employees = await User.findAll({
+      where: {
+        role: {
+          [Op.in]: [UserRole.SELLER, UserRole.ACCOUNTANT, UserRole.LOADER]
+        }
+      },
+      attributes: ['id', 'name', 'email', 'role', 'createdAt'] // Exclude password
+    });
+    res.json(employees);
+  } catch (error) {
+    console.error('Error fetching employees:', error);
+    res.status(500).json({ error: 'Failed to fetch employees' });
+  }
+}));
+
+app.put('/employees/:id/password', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
+  // @ts-ignore
+  if (req.user.role !== UserRole.ADMIN) {
+    return res.status(403).json({ error: 'Only admins can change employee passwords' });
+  }
+
+  const { id } = req.params;
+  const { newPassword } = req.body;
+
+  if (!newPassword || newPassword.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+  }
+
+  try {
+    const employee = await User.findByPk(id);
+    if (!employee) {
+      return res.status(404).json({ error: 'Employee not found' });
+    }
+
+    // Make sure we can only change employee passwords, not admin passwords
+    if (employee.role === UserRole.ADMIN) {
+      return res.status(403).json({ error: 'Cannot change admin passwords through this endpoint' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await employee.update({ password: hashedPassword });
+
+    res.json({ message: 'Password updated successfully' });
+  } catch (error) {
+    console.error('Error updating employee password:', error);
+    res.status(500).json({ error: 'Failed to update password' });
+  }
+}));
+
 // Error handling middleware
 app.use((err: any, req: Request, res: Response, next: any) => {
   console.error('Error:', err);
