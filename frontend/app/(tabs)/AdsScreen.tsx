@@ -49,33 +49,40 @@ export default function AdsScreen() {
   const fetchAds = async () => {
     setLoading(true);
     setError('');
-    try {
-      const endpoint = '/ads';
+    try {      // Выбираем правильный эндпоинт в зависимости от роли пользователя
+      const endpoint = isAdmin ? '/ads/moderation' : '/ads';
       const response = await api.get(endpoint);
-      const responseData = response.data as Ad[];
+      let responseData = response.data as Ad[];
 
-      const filteredAds = responseData.filter(ad => {
-        // Remove deleted ads for everyone
-        if (ad.deleted) return false;
-        
-        if (!isAuthenticated) {
-          // For unauthorized users: show only approved ads
-          return ad.status === 'approved';
-        } else if (isAdmin || isLoader) {
-          // For admins and loaders: show pending and approved ads
-          return ad.status !== 'rejected';
-        } else {
-          // For other authorized users: show only approved ads
-          return ad.status === 'approved';
-        }
-      });
+      if (isAdmin) {
+        // Для админа получаем также все подтвержденные объявления
+        const approvedResponse = await api.get('/ads');
+        const approvedAds = approvedResponse.data as Ad[];
+        // Объединяем объявления на модерации и подтвержденные
+        responseData = [...responseData, ...approvedAds];
+      }
 
+      let filteredAds = responseData.filter(ad => !ad.deleted);
+
+      if (!isAuthenticated) {
+        // Для неавторизованных пользователей только подтвержденные
+        filteredAds = filteredAds.filter(ad => ad.status === 'approved');
+      } else if (!isAdmin) {
+        // Для авторизованных неадминов только подтвержденные
+        filteredAds = filteredAds.filter(ad => ad.status === 'approved');
+      }
+      // Для админа оставляем все: и на модерации, и подтвержденные      // Удаляем дубликаты (если они есть)
+      filteredAds = filteredAds.filter((ad, index, self) =>
+        index === self.findIndex((t) => t.id === ad.id)
+      );
+
+      // Сортируем: сначала на модерации, потом по дате (новые сверху)
       const sortedAds = filteredAds.sort((a, b) => {
-        if ((isAdmin || isLoader) && a.status !== b.status) {
-          // For admin and loaders, show pending first, then approved
+        if (a.status !== b.status) {
+          // Объявления на модерации всегда сверху
           return a.status === 'pending' ? -1 : 1;
         }
-        // Sort by date (newest first)
+        // При одинаковом статусе сортируем по дате
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       });
       

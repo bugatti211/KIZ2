@@ -47,9 +47,9 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
   ].includes(user.role) : false;
 
   // Additional role checks for specific functionality
-  const canAccessOrders = user?.role === UserRole.ADMIN || user?.role === UserRole.LOADER || user?.role === UserRole.SELLER;
-  const canAccessSupplies = user?.role === UserRole.ADMIN || user?.role === UserRole.LOADER || user?.role === UserRole.SELLER;
-  const canAccessSales = user?.role === UserRole.ADMIN || user?.role === UserRole.SELLER;
+  const canAccessSupplies = user?.role === UserRole.ADMIN || user?.role === UserRole.ACCOUNTANT;
+  const canAccessSales = user?.role === UserRole.ADMIN || user?.role === UserRole.SELLER || user?.role === UserRole.LOADER;
+  const canAccessSalesHistory = user?.role === UserRole.ADMIN || user?.role === UserRole.SELLER || user?.role === UserRole.LOADER || user?.role === UserRole.ACCOUNTANT;
 
   // Common state management
   const [showCreate, setShowCreate] = useState(false);
@@ -327,17 +327,18 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
       case 'Объявления на модерацию':
         if (user.role !== UserRole.ADMIN) return null;
         break;
-      
-      case 'Управление товарами':
-      case 'Оффлайн-продажи':
-      case 'История продаж':
+        case 'Управление товарами':      case 'Поставки':
+        if (user.role !== UserRole.ADMIN && user.role !== UserRole.ACCOUNTANT) return null;
+        break;
+        case 'Оффлайн-продажи':
         if (user.role !== UserRole.ADMIN && user.role !== UserRole.SELLER) return null;
         break;
-      
-      case 'Поставки':
+        
+      case 'История продаж':
         if (user.role !== UserRole.ADMIN && 
             user.role !== UserRole.SELLER && 
-            user.role !== UserRole.LOADER) return null;
+            user.role !== UserRole.LOADER &&
+            user.role !== UserRole.ACCOUNTANT) return null;
         break;
     }
 
@@ -368,34 +369,112 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
       visible={showSupplyModal}
       onRequestClose={() => setShowSupplyModal(false)}
     >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalView}>
-          <Text style={styles.modalTitle}>Поставки</Text>
-          
-          <TouchableOpacity
-            style={[styles.button, styles.supplyButton]}
-            onPress={() => {
-              setShowSupplyModal(false);              navigationNative.navigate('NewSupply');
-            }}
-          >
-            <Text style={styles.buttonText}>Новая</Text>
-          </TouchableOpacity>
+    <View style={[styles.modalOverlay, { justifyContent: 'center', alignItems: 'center' }]}>
+        <View style={[styles.modalView, {          width: '80%',
+          backgroundColor: 'white',
+          borderRadius: 20,
+          padding: 35,
+          shadowColor: "#000",
+          shadowOffset: {
+            width: 0,
+            height: 2
+          },
+          shadowOpacity: 0.25,
+          shadowRadius: 4,
+          elevation: 5
+        }]}>
+          <Text style={[styles.modalTitle, { 
+            fontSize: 28, 
+            fontWeight: 'bold',
+            marginBottom: 30,
+            textAlign: 'center'
+          }]}>Поставки</Text>            {user?.role === UserRole.ADMIN && (
+              <TouchableOpacity
+                style={[styles.button, {
+                  backgroundColor: '#2196F3',
+                  padding: 25,
+                  borderRadius: 12,
+                  marginBottom: 20,
+                  width: '100%',
+                  elevation: 3,
+                  shadowColor: "#000",
+                  shadowOffset: {
+                    width: 0,
+                    height: 2
+                  },
+                  shadowOpacity: 0.25,
+                  shadowRadius: 3.84,
+                }]}
+                onPress={() => {
+                  setShowSupplyModal(false);
+                  navigationNative.navigate('NewSupply');
+                }}
+              >
+                <Text style={[styles.buttonText, { 
+                  fontSize: 20, 
+                  textAlign: 'center',
+                  color: '#FFFFFF',
+                  fontWeight: 'bold',
+                  textShadowColor: 'rgba(0, 0, 0, 0.25)',
+                  textShadowOffset: { width: 0, height: 1 },
+                  textShadowRadius: 2
+                }]}>Новая поставка</Text>
+              </TouchableOpacity>
+            )}
 
-          <TouchableOpacity
-            style={[styles.button, styles.supplyButton]}
+          <TouchableOpacity            style={[styles.button, {              backgroundColor: '#00C853',
+              padding: 25,
+              borderRadius: 12,
+              marginBottom: 30,
+              width: '100%',
+              elevation: 3,
+              shadowColor: "#000",
+              shadowOffset: {
+                width: 0,
+                height: 2
+              },
+              shadowOpacity: 0.25,
+              shadowRadius: 3.84,
+            }]}
             onPress={() => {
               setShowSupplyModal(false);
               navigationNative.navigate('SupplyHistory');
             }}
           >
-            <Text style={styles.buttonText}>История</Text>
+            <Text style={[styles.buttonText, { 
+              fontSize: 20, 
+              textAlign: 'center',
+              color: '#FFFFFF',
+              fontWeight: 'bold',
+              textShadowColor: 'rgba(0, 0, 0, 0.25)',
+              textShadowOffset: { width: 0, height: 1 },
+              textShadowRadius: 2
+            }]}>История поставок</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.button, styles.closeButton]}
+          <TouchableOpacity            style={[styles.button, {              backgroundColor: '#FFFFFF',
+              padding: 22,
+              borderRadius: 12,
+              width: '100%',
+              borderWidth: 2,
+              borderColor: '#DDDDDD',
+              elevation: 2,
+              shadowColor: "#000",
+              shadowOffset: {
+                width: 0,
+                height: 1
+              },
+              shadowOpacity: 0.20,
+              shadowRadius: 1.41,
+            }]}
             onPress={() => setShowSupplyModal(false)}
           >
-            <Text style={styles.buttonText}>Закрыть</Text>
+            <Text style={[styles.buttonText, { 
+              fontSize: 20, 
+              textAlign: 'center',
+              color: '#424242',
+              fontWeight: '600'
+            }]}>Закрыть</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -568,16 +647,12 @@ export default function ProfileScreen({ setIsAuthenticated, navigation, route }:
                 <Text style={styles.email}>{user?.email ?? ''}</Text>
                 <Text style={styles.role}>{user?.role ? roleTranslations[user.role as UserRole] || user.role : ''}</Text>
               </View>
-              {/* Меню действий */}
-              <View style={styles.menuContainer}>                {renderMenuItem('👤', 'Личные данные', () => setShowPersonalInfo(true))}
-                {!isStaffUser &&
-                  renderMenuItem('🛍️', 'Мои заказы', () => navigationNative.navigate('MyOrders'))}
-                {canAccessOrders && renderMenuItem('📋', 'Заказы', () => navigation.navigate('orders'))}
-                {(user?.role === UserRole.ADMIN || user?.role === UserRole.SELLER) && 
+              {/* Меню действий */}              <View style={styles.menuContainer}>                {renderMenuItem('👤', 'Личные данные', () => setShowPersonalInfo(true))}                {!isStaffUser &&
+                  renderMenuItem('🛍️', 'Мои заказы', () => navigationNative.navigate('MyOrders'))}                {user?.role === UserRole.ADMIN && 
                   renderMenuItem('📦', 'Управление товарами', () => navigationNative.navigate('ProductManagementScreen'))}
                 {canAccessSupplies && renderMenuItem('📋', 'Поставки', () => setShowSupplyModal(true))}
                 {canAccessSales && renderMenuItem('💰', 'Оффлайн-продажи', () => navigationNative.navigate('OfflineSalesScreen'))}
-                {canAccessSales && renderMenuItem('📈', 'История продаж', () => navigationNative.navigate('SalesHistory'))}
+                {canAccessSalesHistory && renderMenuItem('📈', 'История продаж', () => navigationNative.navigate('SalesHistory'))}
                 {renderMenuItem('👥', 'Регистрация сотрудника', () => setShowEmployeeRegistration(true))}
                 {user?.role === UserRole.ADMIN && (                  <TouchableOpacity
                     style={styles.menuItem}
