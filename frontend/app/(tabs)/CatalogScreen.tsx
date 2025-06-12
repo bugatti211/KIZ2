@@ -19,6 +19,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../types/navigation';
 import api from '../api';
 import { UserRole } from '../../constants/Roles';
+import { decodeToken } from '../utils/tokenUtils';
 
 type CatalogScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -52,8 +53,10 @@ export default function CatalogScreen() {
   const checkAdminStatus = useCallback(async () => {
     try {
       const token = await AsyncStorage.getItem('token');
-      if (token) {
-        const tokenData = JSON.parse(atob(token.split('.')[1]));
+      if (token) {        const tokenData = decodeToken(token);
+        if (!tokenData) {
+          throw new Error('Invalid token data');
+        }
         setIsAdmin(tokenData.role === UserRole.ADMIN);
       } else {
         setIsAdmin(false);

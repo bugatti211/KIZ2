@@ -17,6 +17,7 @@ export type ProfileStackParamList = {
   OrderDetails: { order: any };
   SaleDetails: { sale: any };
   AddEditProductScreen: { product?: any };
+  StaffManagement: undefined;
 };
 
 export type TabParamList = {

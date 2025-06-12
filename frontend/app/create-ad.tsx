@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,12 +13,37 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import api from './api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { UserRole } from '../constants/Roles';
+import { decodeToken } from './utils/tokenUtils';
 
 export default function CreateAdScreen() {
   const router = useRouter();
   const [text, setText] = useState('');
   const [phone, setPhone] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const token = await AsyncStorage.getItem('token');
+      if (token) {
+        try {          const tokenData = decodeToken(token);
+          if (!tokenData) {
+            throw new Error('Invalid token data');
+          }
+          const staff = [
+            UserRole.ADMIN,
+            UserRole.SELLER,
+            UserRole.ACCOUNTANT,
+            UserRole.LOADER,
+          ].includes(tokenData.role);
+          if (staff) {
+            router.back();
+          }
+        } catch {}
+      }
+    })();
+  }, []);
 
   const handleSubmit = async () => {
     if (!text.trim() || !phone.trim()) {
