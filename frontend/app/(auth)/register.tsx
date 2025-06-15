@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, Alert } from 'react-native';
+import { styles } from '../styles/RegisterScreenStyles';
 import { register } from '../authApi';
 
 export default function RegisterScreen({ navigation }: any) {
@@ -52,13 +53,13 @@ export default function RegisterScreen({ navigation }: any) {
   };
 
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 0, backgroundColor: 'transparent' }}>
-      <View style={{ width: 320, backgroundColor: '#f7f7fa', borderRadius: 16, padding: 24, shadowColor: '#000', shadowOpacity: 0.10, shadowRadius: 16, elevation: 8, alignItems: 'stretch' }}>
+    <View style={styles.container}>
+      <View style={styles.innerContainer}>
         <TextInput
           placeholder="Имя"
           value={name}
           onChangeText={setName}
-          style={{ borderWidth: 1.5, marginBottom: 14, padding: 10, borderRadius: 7, fontSize: 18, backgroundColor: '#fff', borderColor: '#d1d5db' }}
+          style={[styles.input, { marginBottom: 14 }]}
           placeholderTextColor="#bfc6d1"
         />
         <TextInput
@@ -67,7 +68,7 @@ export default function RegisterScreen({ navigation }: any) {
           onChangeText={setEmail}
           autoCapitalize="none"
           keyboardType="email-address"
-          style={{ borderWidth: 1.5, marginBottom: 14, padding: 10, borderRadius: 7, fontSize: 18, backgroundColor: '#fff', borderColor: '#d1d5db' }}
+          style={[styles.input, { marginBottom: 14 }]}
           placeholderTextColor="#bfc6d1"
         />
         <TextInput
@@ -75,7 +76,7 @@ export default function RegisterScreen({ navigation }: any) {
           value={password}
           onChangeText={setPassword}
           secureTextEntry
-          style={{ borderWidth: 1.5, marginBottom: 20, padding: 10, borderRadius: 7, fontSize: 18, backgroundColor: '#fff', borderColor: '#d1d5db' }}
+          style={[styles.input, { marginBottom: 20 }]}
           placeholderTextColor="#bfc6d1"
         />
         <Button title={loading ? 'Регистрация...' : 'Зарегистрироваться'} onPress={handleRegister} disabled={loading} />
