@@ -10,6 +10,7 @@ import { Order, OrderItem } from './order.model';
 import { Supply, SupplyItem } from './supply.model';
 import Sale, { SaleItem } from './sale.model';
 import ChatMessage from './chatMessage.model';
+import Rating from './rating.model';
 import { asyncHandler } from './asyncHandler';
 import { authMiddleware } from './authMiddleware';
 import type { Request, Response } from 'express';
@@ -107,6 +108,9 @@ SupplyItem.sync();
 
 // Синхронизация модели ChatMessage с БД
 ChatMessage.sync();
+
+// Синхронизация модели Rating с БД
+Rating.sync();
 
 // CRUD роуты для User
 app.post('/users', asyncHandler(async (req: Request, res: Response) => {
@@ -401,6 +405,51 @@ app.delete('/products/:id', asyncHandler(async (req: Request, res: Response) => 
   if (!product) return res.status(404).json({ error: 'Not found' });
   await product.destroy();
   res.json({ success: true });
+}));
+
+// ---- PRODUCT RATINGS ----
+app.post('/products/:id/ratings', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
+  const productId = parseInt(req.params.id, 10);
+  const { rating, comment } = req.body;
+  // @ts-ignore
+  const userId = req.user.id;
+
+  if (!rating || rating < 1 || rating > 5) {
+    return res.status(400).json({ error: 'Rating must be between 1 and 5' });
+  }
+
+  const product = await Product.findByPk(productId);
+  if (!product) {
+    return res.status(404).json({ error: 'Product not found' });
+  }
+
+  const existing = await Rating.findOne({ where: { productId, userId } });
+  if (existing) {
+    await existing.update({ rating, comment });
+    return res.json(existing);
+  }
+
+  const newRating = await Rating.create({ productId, userId, rating, comment });
+  res.status(201).json(newRating);
+}));
+
+app.get('/products/:id/ratings', asyncHandler(async (req: Request, res: Response) => {
+  const productId = parseInt(req.params.id, 10);
+  const ratings = await Rating.findAll({
+    where: { productId },
+    include: [{ model: User, as: 'user', attributes: ['id', 'name'] }]
+  });
+  res.json(ratings);
+}));
+
+app.get('/products/:id/rating', asyncHandler(async (req: Request, res: Response) => {
+  const productId = parseInt(req.params.id, 10);
+  const result = await Rating.findAll({
+    where: { productId },
+    attributes: [[sequelizeInstance.fn('AVG', sequelizeInstance.col('rating')), 'avgRating']],
+  });
+  const avg = parseFloat((result[0] as any).get('avgRating')) || 0;
+  res.json({ average: avg });
 }));
 
 // Endpoints для поставок
