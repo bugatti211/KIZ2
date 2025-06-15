@@ -5,13 +5,14 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { HeaderBackButton } from '@react-navigation/elements';
 import { TabParamList, ProfileStackParamList } from '../../types/navigation';
+import { OrderStatus, getOrderStatusTranslation } from '../../constants/Orders';
 import api from '../api';
 
 interface Order {
   id: number;
   total: number;
   createdAt: string;
-  status: string;
+  status: OrderStatus;
 }
 
 export default function MyOrdersScreen() {
@@ -90,7 +91,7 @@ export default function MyOrdersScreen() {
             onPress={() => navigation.navigate('OrderDetails', { order })}
           >
             <Text style={styles.date}>{formatDate(order.createdAt)}</Text>
-            <Text style={styles.status}>Статус: {order.status}</Text>
+            <Text style={styles.status}>Статус: {getOrderStatusTranslation(order.status)}</Text>
             <Text style={styles.total}>Сумма: {Number(order.total).toLocaleString()} ₽</Text>
           </TouchableOpacity>
         ))

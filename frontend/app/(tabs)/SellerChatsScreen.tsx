@@ -5,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { UserRole } from '../../constants/Roles';
 import { useRouter } from 'expo-router';
+import { decodeToken } from '../utils/tokenUtils';
 
 interface ChatMessage {
   id: number;
@@ -38,13 +39,14 @@ export default function SellerChatsScreen() {
       if (!token) {
         router.replace('/(tabs)/ConsultScreen');
         return;
-      }
-
-      try {
-        const data = JSON.parse(atob(token.split('.')[1]));
-        setMyId(data.id);
+      }      try {
+        const tokenData = decodeToken(token);
+        if (!tokenData) {
+          throw new Error('Invalid token data');
+        }
+        setMyId(tokenData.id);
         
-        if (data.role === UserRole.SELLER) {
+        if (tokenData.role === UserRole.SELLER) {
           setIsSeller(true);
           loadChats();
         } else {

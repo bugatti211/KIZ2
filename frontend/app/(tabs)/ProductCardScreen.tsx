@@ -8,24 +8,42 @@ import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCart } from '../CartContext';
 import { useRouter } from 'expo-router';
+import type { TabParamList } from '../../types/navigation';
+import { UserRole } from '../../constants/Roles';
+import { decodeToken } from '../utils/tokenUtils';
+import defaultImage from '../../assets/images/default.png'; // Импорт изображения по умолчанию
 
 type RootStackParamList = {
   CategoryProductsScreen: { category: string } | undefined;
   ProductCardScreen: { product: any } | undefined;
 };
 
-type RootTabParamList = {
-  Catalog: undefined;
-  Consult: undefined;
-  Cart: undefined;
-  Profile: undefined;
-  Ads: undefined;
-};
-
 type ProductCardScreenNavigationProp = CompositeNavigationProp<
   NativeStackNavigationProp<RootStackParamList>,
-  BottomTabNavigationProp<RootTabParamList>
+  BottomTabNavigationProp<TabParamList>
 >;
+
+const productImages: Record<string, any> = {
+  '210': require('../../assets/images/products/210.png'),
+  '211': require('../../assets/images/products/211.png'),
+  '212': require('../../assets/images/products/212.png'),
+  '213': require('../../assets/images/products/213.png'),
+  '28': require('../../assets/images/products/28.png'),
+  '282': require('../../assets/images/products/282.png'),
+  '29': require('../../assets/images/products/29.png'),
+};
+
+function getProductImagePath(categoryId: number, productId: number): any {
+  console.log('Category ID:', categoryId);
+  console.log('Product ID:', productId);
+  const key = `${categoryId}${productId}`;
+  if (productImages[key]) {
+    return productImages[key];
+  } else {
+    console.warn('Image not found, using default image');
+    return defaultImage;
+  }
+}
 
 export default function ProductCardScreen({ route }: any) {
   const navigation = useNavigation<ProductCardScreenNavigationProp>();
@@ -33,6 +51,7 @@ export default function ProductCardScreen({ route }: any) {
   const { product } = route.params || {};
   const { addToCart } = useCart();
   const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [isStaff, setIsStaff] = useState(false);
 
   // Set up header back button without label
   useEffect(() => {
@@ -44,7 +63,33 @@ export default function ProductCardScreen({ route }: any) {
         />
       ),
     });
-  }, [navigation]);  const handleBuyPress = async () => {
+  }, [navigation]);
+
+  useEffect(() => {
+    (async () => {
+      const token = await AsyncStorage.getItem('token');
+      if (token) {
+        try {
+          const tokenData = decodeToken(token);
+          if (!tokenData) {
+            throw new Error('Invalid token data');
+          }
+          setIsStaff([
+            UserRole.ADMIN,
+            UserRole.SELLER,
+            UserRole.ACCOUNTANT,
+            UserRole.LOADER,
+          ].includes(tokenData.role));
+        } catch {
+          setIsStaff(false);
+        }
+      } else {
+        setIsStaff(false);
+      }
+    })();
+  }, []);
+
+  const handleBuyPress = async () => {
     try {
       // First check if user is authenticated
       const token = await AsyncStorage.getItem('token');
@@ -52,7 +97,8 @@ export default function ProductCardScreen({ route }: any) {
         Alert.alert(
           'Требуется авторизация',
           'Для добавления товара в корзину необходимо войти в аккаунт',
-          [            { text: 'Отмена', style: 'cancel' },
+          [
+            { text: 'Отмена', style: 'cancel' },
             { text: 'Войти', onPress: () => router.push('/(auth)/login') }
           ]
         );
@@ -79,7 +125,7 @@ export default function ProductCardScreen({ route }: any) {
       <View style={styles.content}>
         {/* Картинка товара */}
         <Image 
-          source={require('../../assets/images/icon.png')} 
+          source={getProductImagePath(product.categoryId, product.id)} 
           style={styles.image} 
           resizeMode="cover"
         />
@@ -114,29 +160,31 @@ export default function ProductCardScreen({ route }: any) {
         )}
 
         {/* Кнопки действий */}
-        <View style={styles.buttonContainer}>
-          <View style={styles.buttonRow}>
-            <View style={styles.buttonWrapper}>
-              {isAddingToCart ? (
-                <ActivityIndicator size="small" color="#4caf50" />
-              ) : (
-                <Button 
-                  title="Купить" 
-                  color="#4caf50"
-                  disabled={product.stock <= 0}
-                  onPress={handleBuyPress}
+        {!isStaff && (
+          <View style={styles.buttonContainer}>
+            <View style={styles.buttonRow}>
+              <View style={styles.buttonWrapper}>
+                {isAddingToCart ? (
+                  <ActivityIndicator size="small" color="#4caf50" />
+                ) : (
+                  <Button
+                    title="Купить"
+                    color="#4caf50"
+                    disabled={product.stock <= 0}
+                    onPress={handleBuyPress}
+                  />
+                )}
+              </View>
+              <View style={styles.buttonWrapper}>
+                <Button
+                  title="Консультация"
+                  color="#2196F3"
+                  onPress={() => navigation.navigate('consult')}
                 />
-              )}
-            </View>
-            <View style={styles.buttonWrapper}>
-              <Button 
-                title="Консультация" 
-                color="#2196F3"
-                onPress={() => navigation.navigate('Consult')}
-              />
+              </View>
             </View>
           </View>
-        </View>
+        )}
       </View>
     </ScrollView>
   );
@@ -167,6 +215,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 20,
     backgroundColor: '#f5f5f5',
+    resizeMode: 'contain', // Ensure the image fits within the container
   },
   mainInfo: {
     flexDirection: 'row',
