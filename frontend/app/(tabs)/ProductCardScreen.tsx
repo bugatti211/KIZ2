@@ -11,6 +11,7 @@ import { useRouter } from 'expo-router';
 import type { TabParamList } from '../../types/navigation';
 import { UserRole } from '../../constants/Roles';
 import { decodeToken } from '../utils/tokenUtils';
+import defaultImage from '../../assets/images/default.png'; // Импорт изображения по умолчанию
 
 type RootStackParamList = {
   CategoryProductsScreen: { category: string } | undefined;
@@ -21,6 +22,28 @@ type ProductCardScreenNavigationProp = CompositeNavigationProp<
   NativeStackNavigationProp<RootStackParamList>,
   BottomTabNavigationProp<TabParamList>
 >;
+
+const productImages: Record<string, any> = {
+  '210': require('../../assets/images/products/210.png'),
+  '211': require('../../assets/images/products/211.png'),
+  '212': require('../../assets/images/products/212.png'),
+  '213': require('../../assets/images/products/213.png'),
+  '28': require('../../assets/images/products/28.png'),
+  '282': require('../../assets/images/products/282.png'),
+  '29': require('../../assets/images/products/29.png'),
+};
+
+function getProductImagePath(categoryId: number, productId: number): any {
+  console.log('Category ID:', categoryId);
+  console.log('Product ID:', productId);
+  const key = `${categoryId}${productId}`;
+  if (productImages[key]) {
+    return productImages[key];
+  } else {
+    console.warn('Image not found, using default image');
+    return defaultImage;
+  }
+}
 
 export default function ProductCardScreen({ route }: any) {
   const navigation = useNavigation<ProductCardScreenNavigationProp>();
@@ -46,7 +69,8 @@ export default function ProductCardScreen({ route }: any) {
     (async () => {
       const token = await AsyncStorage.getItem('token');
       if (token) {
-        try {          const tokenData = decodeToken(token);
+        try {
+          const tokenData = decodeToken(token);
           if (!tokenData) {
             throw new Error('Invalid token data');
           }
@@ -73,7 +97,8 @@ export default function ProductCardScreen({ route }: any) {
         Alert.alert(
           'Требуется авторизация',
           'Для добавления товара в корзину необходимо войти в аккаунт',
-          [            { text: 'Отмена', style: 'cancel' },
+          [
+            { text: 'Отмена', style: 'cancel' },
             { text: 'Войти', onPress: () => router.push('/(auth)/login') }
           ]
         );
@@ -100,7 +125,7 @@ export default function ProductCardScreen({ route }: any) {
       <View style={styles.content}>
         {/* Картинка товара */}
         <Image 
-          source={require('../../assets/images/icon.png')} 
+          source={getProductImagePath(product.categoryId, product.id)} 
           style={styles.image} 
           resizeMode="cover"
         />
@@ -190,6 +215,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 20,
     backgroundColor: '#f5f5f5',
+    resizeMode: 'contain', // Ensure the image fits within the container
   },
   mainInfo: {
     flexDirection: 'row',
