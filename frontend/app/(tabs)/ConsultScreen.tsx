@@ -20,6 +20,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { yandexGptService } from '../../services/yandexGptService';
 import { AI_ASSISTANT_CONTEXT, INITIAL_AI_MESSAGE } from '../config/aiAssistant';
+import { decodeToken } from '../utils/tokenUtils';
 
 interface Message {
   id?: number;
@@ -62,10 +63,11 @@ export default function ConsultScreen() {
           setMessages([]);
           setIsAuthChecked(true);
           return;
-        }
-
-        try {
-          const tokenData = JSON.parse(atob(token.split('.')[1]));
+        }        try {
+          const tokenData = decodeToken(token);
+          if (!tokenData) {
+            throw new Error('Invalid token data');
+          }
           const currentUserId = tokenData.id;
           setIsAuthenticated(true);
           setUserId(currentUserId);

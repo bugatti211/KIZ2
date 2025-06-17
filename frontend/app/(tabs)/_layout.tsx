@@ -3,7 +3,9 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authEvents, AUTH_EVENTS } from '../events';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { UserRole } from '../../constants/Roles';
+import { decodeToken } from '../utils/tokenUtils';
 import CatalogScreen from './CatalogScreen';
 import ConsultScreen from './ConsultScreen';
 import CartScreen from './CartScreen';
@@ -12,7 +14,6 @@ import CategoryProductsScreen from './CategoryProductsScreen';
 import ProductCardScreen from './ProductCardScreen';
 import ProductManagementScreen from './ProductManagementScreen';
 import AddEditProductScreen from '../AddEditProductScreen';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AdsScreen from './AdsScreen';
 import NewSupplyScreen from './NewSupplyScreen';
 import SupplyHistoryScreen from './SupplyHistoryScreen';
@@ -22,7 +23,9 @@ import OfflineSalesScreen from './OfflineSalesScreen';
 import SalesHistoryScreen from './SalesHistoryScreen';
 import OrderDetailsScreen from './OrderDetailsScreen';
 import SaleDetailsScreen from './SaleDetailsScreen';
+import StaffManagementScreen from './StaffManagementScreen';
 import SellerChatsScreen from './SellerChatsScreen';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -36,11 +39,15 @@ const checkAuth = async () => {
 function ProfileStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="ProfileMain" component={ProfileScreen} options={{ title: 'Профиль', headerShown: true }}/>
       <Stack.Screen 
-        name="OfflineSalesScreen" 
-        component={OfflineSalesScreen} 
-        options={{ 
+        name="ProfileMain"
+        component={ProfileScreen}
+        options={{ title: 'Профиль', headerShown: true }}
+      />
+      <Stack.Screen
+        name="OfflineSalesScreen"
+        component={OfflineSalesScreen}
+        options={{
           title: 'Оффлайн-продажи',
           headerShown: true,
           headerStyle: {
@@ -49,13 +56,12 @@ function ProfileStack() {
           headerTintColor: '#000',
           headerTitleStyle: {
             fontWeight: 'bold',
-          }
-        }} 
+          }        }}
       />
-      <Stack.Screen 
-        name="ProductManagementScreen" 
-        component={ProductManagementScreen} 
-        options={{ 
+      <Stack.Screen
+        name="ProductManagementScreen"
+        component={ProductManagementScreen}
+        options={{
           title: 'Управление товарами',
           headerShown: true,
           headerStyle: {
@@ -65,12 +71,11 @@ function ProfileStack() {
           headerTitleStyle: {
             fontWeight: 'bold',
           }
-        }} 
-      />
-      <Stack.Screen 
-        name="NewSupply" 
-        component={NewSupplyScreen} 
-        options={{ 
+        }}/>
+      <Stack.Screen
+        name="NewSupply"
+        component={NewSupplyScreen}
+        options={{
           title: 'Новая поставка',
           headerShown: true,
           headerStyle: {
@@ -79,8 +84,7 @@ function ProfileStack() {
           headerTintColor: '#000',
           headerTitleStyle: {
             fontWeight: 'bold',
-          }
-        }} 
+          }        }}
       />
       <Stack.Screen
         name="SupplyHistory"
@@ -95,8 +99,7 @@ function ProfileStack() {
           headerTitleStyle: {
             fontWeight: 'bold',
           }
-        }}
-      />
+        }}/>
       <Stack.Screen
         name="SalesHistory"
         component={SalesHistoryScreen}
@@ -110,8 +113,7 @@ function ProfileStack() {
           headerTitleStyle: {
             fontWeight: 'bold',
           }
-        }}
-      />
+        }}/>
       <Stack.Screen
         name="MyOrders"
         component={MyOrdersScreen}
@@ -119,8 +121,7 @@ function ProfileStack() {
           title: 'Мои заказы',
           headerShown: true,
           headerStyle: { backgroundColor: '#fff' },
-          headerTintColor: '#000',
-          headerTitleStyle: { fontWeight: 'bold' }
+          headerTintColor: '#000',          headerTitleStyle: { fontWeight: 'bold' }
         }}
       />
       <Stack.Screen
@@ -131,8 +132,7 @@ function ProfileStack() {
           headerShown: true,
           headerStyle: { backgroundColor: '#fff' },
           headerTintColor: '#000',
-          headerTitleStyle: { fontWeight: 'bold' }
-        }}
+          headerTitleStyle: { fontWeight: 'bold' }        }}
       />
       <Stack.Screen
         name="SaleDetails"
@@ -144,6 +144,16 @@ function ProfileStack() {
           headerTintColor: '#000',
           headerTitleStyle: { fontWeight: 'bold' }
         }}
+      />
+      <Stack.Screen
+        name="StaffManagement"
+        component={StaffManagementScreen}
+        options={{
+          title: 'Управление персоналом',
+          headerShown: true,
+          headerStyle: { backgroundColor: '#fff' },
+          headerTintColor: '#000',
+          headerTitleStyle: { fontWeight: 'bold' }        }}
       />
       <Stack.Screen
         name="AddEditProductScreen"
@@ -158,20 +168,21 @@ function ProfileStack() {
           headerTitleStyle: {
             fontWeight: 'bold',
           }
-        })} 
-      />
-    </Stack.Navigator>
+        })}
+      /></Stack.Navigator>
   );
 }
 
 function CatalogStack() {
   return (
     <Stack.Navigator>
-      <Stack.Screen name="CatalogMain" component={CatalogScreen} options={{ title: 'Каталог' }} />
-      <Stack.Screen 
-        name="CategoryProductsScreen" 
-        component={CategoryProductsScreen} 
-        options={({ route }: any) => ({ 
+      <Stack.Screen
+        name="CatalogMain"
+        component={CatalogScreen}
+        options={{ title: 'Каталог' }}
+      /><Stack.Screen        name="CategoryProductsScreen"
+        component={CategoryProductsScreen}
+        options={({ route }: any) => ({
           title: route.params?.category || 'Товары категории',
           headerStyle: {
             backgroundColor: '#fff',
@@ -179,13 +190,13 @@ function CatalogStack() {
           headerTintColor: '#000',
           headerTitleStyle: {
             fontWeight: 'bold',
-          },
-        })} 
+          }
+        })}
       />
-      <Stack.Screen 
-        name="ProductCardScreen" 
-        component={ProductCardScreen} 
-        options={({ route }: any) => ({ 
+      <Stack.Screen
+        name="ProductCardScreen"
+        component={ProductCardScreen}
+        options={({ route }: any) => ({
           title: route.params?.product?.name || 'Товар',
           headerStyle: {
             backgroundColor: '#fff',
@@ -194,29 +205,31 @@ function CatalogStack() {
           headerTitleStyle: {
             fontWeight: 'bold',
           }
-        })} 
+        })}
       />
     </Stack.Navigator>
   );
 }
 
 export default function TabLayout() {
+  const router = useRouter();
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSeller, setIsSeller] = useState(false);
   const [isLoader, setIsLoader] = useState(false);
   const [isStaff, setIsStaff] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [token, setToken] = useState<string | null>(null);
-
   const checkAdminStatus = useCallback(async () => {
     try {
       const currentToken = await AsyncStorage.getItem('token');
       setToken(currentToken);
       setIsAuthenticated(!!currentToken);
-      
-      if (currentToken) {
+        if (currentToken) {
         try {
-          const tokenData = JSON.parse(atob(currentToken.split('.')[1]));
+          const tokenData = decodeToken(currentToken);
+          if (!tokenData) {
+            throw new Error('Invalid token data');
+          }
           setIsAdmin(tokenData.role === UserRole.ADMIN);
           setIsSeller(tokenData.role === UserRole.SELLER);
           setIsLoader(tokenData.role === UserRole.LOADER);
@@ -252,14 +265,10 @@ export default function TabLayout() {
       authEvents.off(AUTH_EVENTS.TOKEN_CHANGE, checkAdminStatus);
     };
   }, [checkAdminStatus]);
-
   return (
-    <Tab.Navigator 
-      initialRouteName="AdsScreen"
-      screenOptions={{
+    <Tab.Navigator initialRouteName="AdsScreen" screenOptions={{
         tabBarActiveTintColor: '#007AFF',
       }}>
-      {/* Screens */}
       <Tab.Screen
         name="AdsScreen"
         component={AdsScreen}
@@ -290,11 +299,11 @@ export default function TabLayout() {
       {!isStaff && (
         <Tab.Screen
           name="cart"
-          component={CartScreen}
-          options={{
+          component={CartScreen}          options={{
             title: 'Корзина',
             tabBarIcon: ({ color, size }) => <Ionicons name="cart" size={size} color={color} />,
-          }}        />
+          }}
+        />
       )}
       {isSeller && (
         <Tab.Screen
@@ -323,6 +332,16 @@ export default function TabLayout() {
           title: isAuthenticated ? 'Профиль' : 'Войти',
           headerShown: false,
           tabBarIcon: ({ color, size }) => <Ionicons name="person" size={size} color={color} />,
+        }}
+        listeners={{
+          tabPress: async (e) => {
+            // Allow access to profile for all authenticated users
+            const token = await AsyncStorage.getItem('token');
+            if (!token) {
+              e.preventDefault();
+              router.push('/(auth)/login');
+            }
+          },
         }}
       />
     </Tab.Navigator>

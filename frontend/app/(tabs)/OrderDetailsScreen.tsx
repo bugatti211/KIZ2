@@ -2,6 +2,7 @@ import React, { useLayoutEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { HeaderBackButton } from '@react-navigation/elements';
+import { OrderStatus, getOrderStatusTranslation } from '../../constants/Orders';
 
 export default function OrderDetailsScreen() {
   const navigation = useNavigation();
@@ -38,6 +39,7 @@ export default function OrderDetailsScreen() {
     <ScrollView style={styles.container}>
       <Text style={styles.title}>Заказ №{order.id}</Text>
       <Text style={styles.date}>{formatDate(order.createdAt)}</Text>
+      <Text style={styles.info}>Статус: {getOrderStatusTranslation(order.status)}</Text>
       <Text style={styles.info}>Клиент: {order.name}</Text>
       {order.deliveryMethod === 'Доставка' && (
         <Text style={styles.info}>Адрес: {order.address}</Text>

@@ -5,6 +5,8 @@ import api from '../api';
 import { useIsFocused } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { UserRole } from '../../constants/Roles';
+import { decodeToken } from '../utils/tokenUtils';
 
 type AdStatus = 'pending' | 'approved' | 'rejected';
 
@@ -37,6 +39,8 @@ export default function AdsScreen() {
   const [isAuthChecked, setIsAuthChecked] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoader, setIsLoader] = useState(false);
+  const [isStaff, setIsStaff] = useState(false);
   const [ads, setAds] = useState<Ad[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -45,31 +49,40 @@ export default function AdsScreen() {
   const fetchAds = async () => {
     setLoading(true);
     setError('');
-    try {      const endpoint = isAdmin ? '/ads/moderation' : '/ads';
+    try {      // Выбираем правильный эндпоинт в зависимости от роли пользователя
+      const endpoint = isAdmin ? '/ads/moderation' : '/ads';
       const response = await api.get(endpoint);
-      const responseData = response.data as Ad[];
-        // Filter ads based on status and authorization
-      const filteredAds = responseData.filter(ad => {
-        // Remove deleted ads for everyone
-        if (ad.deleted) return false;
-        
-        if (!isAuthenticated) {
-          // For unauthorized users: show only approved ads
-          return ad.status === 'approved';
-        } else if (isAdmin) {
-          // For admins: show pending and approved ads
-          return ad.status !== 'rejected';
-        } else {
-          // For authorized non-admin users: show only approved ads
-          return ad.status === 'approved';
-        }
-      });
-        const sortedAds = filteredAds.sort((a, b) => {
-        if (isAdmin && a.status !== b.status) {
-          // For admin, show pending first, then approved
+      let responseData = response.data as Ad[];
+
+      if (isAdmin) {
+        // Для админа получаем также все подтвержденные объявления
+        const approvedResponse = await api.get('/ads');
+        const approvedAds = approvedResponse.data as Ad[];
+        // Объединяем объявления на модерации и подтвержденные
+        responseData = [...responseData, ...approvedAds];
+      }
+
+      let filteredAds = responseData.filter(ad => !ad.deleted);
+
+      if (!isAuthenticated) {
+        // Для неавторизованных пользователей только подтвержденные
+        filteredAds = filteredAds.filter(ad => ad.status === 'approved');
+      } else if (!isAdmin) {
+        // Для авторизованных неадминов только подтвержденные
+        filteredAds = filteredAds.filter(ad => ad.status === 'approved');
+      }
+      // Для админа оставляем все: и на модерации, и подтвержденные      // Удаляем дубликаты (если они есть)
+      filteredAds = filteredAds.filter((ad, index, self) =>
+        index === self.findIndex((t) => t.id === ad.id)
+      );
+
+      // Сортируем: сначала на модерации, потом по дате (новые сверху)
+      const sortedAds = filteredAds.sort((a, b) => {
+        if (a.status !== b.status) {
+          // Объявления на модерации всегда сверху
           return a.status === 'pending' ? -1 : 1;
         }
-        // Sort by date (newest first)
+        // При одинаковом статусе сортируем по дате
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       });
       
@@ -124,17 +137,27 @@ export default function AdsScreen() {
       ]
     );
   };
-
   useEffect(() => {
     (async () => {
       const token = await AsyncStorage.getItem('token');
       if (token) {
         setIsAuthenticated(true);
-        const tokenData = JSON.parse(atob(token.split('.')[1]));
-        setIsAdmin(tokenData.role === 'admin');
+        const tokenData = decodeToken(token);
+        if (tokenData) {
+          setIsAdmin(tokenData.role === UserRole.ADMIN);
+          setIsLoader(tokenData.role === UserRole.LOADER);
+          setIsStaff([
+            UserRole.ADMIN,
+            UserRole.SELLER,
+            UserRole.ACCOUNTANT,
+            UserRole.LOADER,
+          ].includes(tokenData.role));
+        }
       } else {
         setIsAuthenticated(false);
         setIsAdmin(false);
+        setIsLoader(false);
+        setIsStaff(false);
       }
       setIsAuthChecked(true);
     })();
@@ -167,8 +190,7 @@ export default function AdsScreen() {
           renderItem={({ item }) => (
             <View style={styles.adCard}>
               <Text style={styles.adText}>{item.text}</Text>
-              <Text style={styles.adPhone}>{item.phone}</Text>
-              {isAdmin && (
+              <Text style={styles.adPhone}>{item.phone}</Text>              {(isAdmin || isLoader) && (
                 <View style={styles.moderationButtons}>
                   {item.status === 'pending' ? (
                     <>
@@ -186,8 +208,9 @@ export default function AdsScreen() {
                       </TouchableOpacity>
                     </>
                   ) : (
-                    <View style={styles.statusContainer}>                      <Text style={styles.statusText}>Подтверждено</Text>
-                      {(
+                    <View style={styles.statusContainer}>                      
+                      <Text style={styles.statusText}>Подтверждено</Text>
+                      {isAdmin && (
                         <TouchableOpacity
                           style={[styles.moderationButton, styles.deleteButton]}
                           onPress={() => handleDelete(item.id)}
@@ -208,18 +231,20 @@ export default function AdsScreen() {
       )}
 
       {/* Floating Action Button */}
-      <TouchableOpacity
-        style={styles.createButton}
-        onPress={() => {
-          if (!isAuthenticated) {
-            setShowAuth(true);
-          } else {
-            router.push('/create-ad');
-          }
-        }}
-      >
-        <Ionicons name="add" size={24} color="#fff" />
-      </TouchableOpacity>
+      {!isStaff && (
+        <TouchableOpacity
+          style={styles.createButton}
+          onPress={() => {
+            if (!isAuthenticated) {
+              setShowAuth(true);
+            } else {
+              router.push('/create-ad');
+            }
+          }}
+        >
+          <Ionicons name="add" size={24} color="#fff" />
+        </TouchableOpacity>
+      )}
 
       <Modal visible={showAuth} animationType="fade" transparent>
         <View style={styles.modalOverlay}>
