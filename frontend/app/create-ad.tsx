@@ -95,6 +95,10 @@ export default function CreateAdScreen() {
             keyboardType="phone-pad"
           />
 
+          <Text style={styles.note}>
+            Подтверждённое объявление будет отображаться примерно 7 дней
+          </Text>
+
           <TouchableOpacity
             style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
             onPress={handleSubmit}
