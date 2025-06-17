@@ -15,6 +15,7 @@ type Order = {
   status: string;
   total: number;
   createdAt: string;
+  updatedAt: string;
   items: Array<{
     productId: number;
     quantity: number;
@@ -114,6 +115,9 @@ export default function OrdersScreen() {
           <View style={styles.orderHeaderLeft}>
             <Text style={styles.orderNumber}>Заказ №{order.id}</Text>
             <Text style={styles.orderDate}>{formatDate(order.createdAt)}</Text>
+            <Text style={styles.orderUpdateDate}>
+              Обновлено: {formatDate(order.updatedAt)}
+            </Text>
           </View>
           <Ionicons 
             name={isExpanded ? 'chevron-up' : 'chevron-down'} 
@@ -148,6 +152,14 @@ export default function OrdersScreen() {
               <Text style={styles.customerInfo}>
                 <Text style={styles.label}>Оплата: </Text>
                 {order.paymentMethod}
+              </Text>
+              <Text style={styles.customerInfo}>
+                <Text style={styles.label}>Статус: </Text>
+                {order.status}
+              </Text>
+              <Text style={styles.customerInfo}>
+                <Text style={styles.label}>Обновлено: </Text>
+                {formatDate(order.updatedAt)}
               </Text>
             </View>
 
@@ -330,6 +342,10 @@ const styles = StyleSheet.create({
   orderDate: {
     fontSize: 14,
     color: '#666',
+  },
+  orderUpdateDate: {
+    fontSize: 12,
+    color: '#999',
   },
   orderInfo: {
     marginBottom: 16,
