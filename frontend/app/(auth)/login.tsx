@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, Alert } from 'react-native';
+import { styles } from '../styles/LoginScreenStyles';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { login } from '../authApi';
 import { useRouter } from 'expo-router';
@@ -36,15 +37,15 @@ export default function LoginScreen() {
   };
 
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 0, backgroundColor: 'transparent' }}>
-      <View style={{ width: 320, backgroundColor: '#fff', borderRadius: 16, padding: 24, shadowColor: '#000', shadowOpacity: 0.10, shadowRadius: 16, elevation: 8, alignItems: 'stretch' }}>
+    <View style={styles.container}>
+      <View style={styles.innerContainer}>
         <TextInput
           placeholder="Email"
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
           keyboardType="email-address"
-          style={{ borderWidth: 1.5, marginBottom: 14, padding: 10, borderRadius: 7, fontSize: 18, backgroundColor: '#f8f9fb', borderColor: '#d1d5db' }}
+          style={[styles.input, { marginBottom: 14 }]}
           placeholderTextColor="#bfc6d1"
         />
         <TextInput
@@ -52,7 +53,7 @@ export default function LoginScreen() {
           value={password}
           onChangeText={setPassword}
           secureTextEntry
-          style={{ borderWidth: 1.5, marginBottom: 20, padding: 10, borderRadius: 7, fontSize: 18, backgroundColor: '#f8f9fb', borderColor: '#d1d5db' }}
+          style={[styles.input, { marginBottom: 20 }]}
           placeholderTextColor="#bfc6d1"
         />
         <Button title={loading ? 'Вход...' : 'Войти'} onPress={handleLogin} disabled={loading} />
