@@ -788,9 +788,18 @@ app.post('/orders', authMiddleware as any, asyncHandler(async (req: Request, res
 app.post('/orders/:id/confirm', authMiddleware as any, asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
+    // @ts-ignore
+    const userRole = req.user.role;
     const order = await Order.findByPk(id);
     if (!order) {
       return res.status(404).json({ error: 'Order not found' });
+    }
+
+    if (![UserRole.ADMIN, UserRole.SELLER, UserRole.LOADER].includes(userRole)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    if (userRole === UserRole.LOADER && order.deliveryMethod !== 'Доставка') {
+      return res.status(403).json({ error: 'Loaders can only process delivery orders' });
     }
 
     await order.update({ status: 'confirmed' });

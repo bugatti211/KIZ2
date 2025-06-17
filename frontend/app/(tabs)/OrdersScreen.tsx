@@ -231,7 +231,8 @@ export default function OrdersScreen() {
                 <Text style={styles.confirmButtonText}>Заказ собран</Text>
               </TouchableOpacity>
             )}
-            {(role === UserRole.ADMIN || role === UserRole.SELLER) && (order.status === OrderStatus.READY || order.status === OrderStatus.IN_TRANSIT) && (
+            {(role === UserRole.ADMIN || role === UserRole.SELLER || (role === UserRole.LOADER && order.deliveryMethod === 'Доставка')) &&
+              (order.status === OrderStatus.READY || order.status === OrderStatus.IN_TRANSIT) && (
               <TouchableOpacity
                 style={styles.confirmButton}
                 onPress={(e) => {
