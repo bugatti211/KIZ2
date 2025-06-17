@@ -20,6 +20,7 @@ type Order = {
   status: OrderStatus;
   total: number;
   createdAt: string;
+  updatedAt: string;
   items: Array<{
     productId: number;
     quantity: number;
@@ -152,7 +153,7 @@ export default function OrdersScreen() {
     const isExpanded = expandedOrders.includes(order.id);
 
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.orderCard}
         onPress={() => toggleOrderExpansion(order.id)}
       >
@@ -161,6 +162,7 @@ export default function OrdersScreen() {
             <Text style={styles.orderNumber}>Заказ №{order.id}</Text>
             <Text style={styles.orderDate}>{formatDate(order.createdAt)}</Text>
             <Text style={styles.orderStatus}>Статус: {getOrderStatusTranslation(order.status)}</Text>
+            <Text style={styles.orderUpdateDate}>Обновлено: {formatDate(order.updatedAt)}</Text>
           </View>
           <Ionicons 
             name={isExpanded ? 'chevron-up' : 'chevron-down'} 
@@ -395,6 +397,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#2196F3',
     marginTop: 4,
+  },
+  orderUpdateDate: {
+    fontSize: 12,
+    color: '#999',
   },
   orderInfo: {
     marginBottom: 16,

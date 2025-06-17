@@ -40,6 +40,7 @@ export default function OrderDetailsScreen() {
       <Text style={styles.title}>Заказ №{order.id}</Text>
       <Text style={styles.date}>{formatDate(order.createdAt)}</Text>
       <Text style={styles.info}>Статус: {getOrderStatusTranslation(order.status)}</Text>
+      <Text style={styles.date}>Обновлено: {formatDate(order.updatedAt)}</Text>
       <Text style={styles.info}>Клиент: {order.name}</Text>
       {order.deliveryMethod === 'Доставка' && (
         <Text style={styles.info}>Адрес: {order.address}</Text>
