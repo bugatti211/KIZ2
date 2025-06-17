@@ -12,6 +12,7 @@ interface Order {
   id: number;
   total: number;
   createdAt: string;
+  updatedAt: string;
   status: OrderStatus;
 }
 
@@ -90,9 +91,10 @@ export default function MyOrdersScreen() {
             style={styles.item}
             onPress={() => navigation.navigate('OrderDetails', { order })}
           >
-            <Text style={styles.date}>{formatDate(order.createdAt)}</Text>
-            <Text style={styles.status}>Статус: {getOrderStatusTranslation(order.status)}</Text>
-            <Text style={styles.total}>Сумма: {Number(order.total).toLocaleString()} ₽</Text>
+          <Text style={styles.date}>{formatDate(order.createdAt)}</Text>
+          <Text style={styles.status}>Статус: {getOrderStatusTranslation(order.status)}</Text>
+          <Text style={styles.updatedDate}>Обновлено: {formatDate(order.updatedAt)}</Text>
+          <Text style={styles.total}>Сумма: {Number(order.total).toLocaleString()} ₽</Text>
           </TouchableOpacity>
         ))
       )}
@@ -126,6 +128,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     marginTop: 4
+  },
+  updatedDate: {
+    fontSize: 12,
+    color: '#999'
   },
   total: {
     fontSize: 16,
